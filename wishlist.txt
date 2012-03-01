@@ -20,6 +20,14 @@ some html
   {% block navigation .nav_context %}{% end block %}
     some more html
   {% block content %}{% end block %}
+  {% call some_method some params here %}
+  {% if call some_method other params go %} foo {% end if %}
+
+  {% range .slice_or_map %}
+    hey {% .key %} whats your {% .val %}
+    this is {% $boof %}
+  {% end for %}
+  this is {% .boof %}
   some more
 {% block footer %}
 
