@@ -1,0 +1,66 @@
+- block based
+- context based
+- light syntax
+- easily extenable with functions
+
+example:
+
+# base.tmpl
+some html
+{% block javascript %}{% end block %}
+{% block css %}
+  default
+{% end block %}
+  some stuff
+  {% if .logged_in %} //if takes anything and tries to evaluate it as being "truthy"
+    thing
+  {% else %}
+    thing
+  {% end if %}
+  {% block navigation .nav_context %}{% end block %}
+    some more html
+  {% block content %}{% end block %}
+  some more
+{% block footer %}
+
+# javascript.block
+{% block javascript %}
+template data here
+{% end block %}
+{% block some_other_block %}
+{% end block %}
+
+in go code:
+
+tpl := tmpl.Load("base.tmpl")
+//loads the files and updates the {% block %} definitions for that file
+tpl.Attach("javascript.block", "foo.block", "some_other.block")
+tpl.Method("name", method)
+tpl.Method("name", method)
+tpl.Method("name", method)
+tpl.Execute(io.Writer, context)
+
+//overwrite the content block
+tpl.Attach("foo.block")
+tpl.Execute(io.Writer, context)
+
+-- maybe something like this
+tpl := tmpl.Load("base.tmpl")
+tpl.Attach("attach.block", "our.block", "basic.block", "blocks.block")
+tpl.Method("and", method1)
+tpl.Method("our_basic", method2)
+tpl.Method("methods", method3)
+tpl.Save() //make a save point
+
+tpl.Attach("content.block")
+tpl.Execute(w, ctx) //after this, calls tpl.Reset() to restore to save point
+
+-- or maybe like this
+tpl := tmpl.Load("base.tmpl")
+tpl.Attach("attach.block", "our.block", "basic.block", "blocks.block")
+tpl.Method("and", method1)
+tpl.Method("our_basic", method2)
+tpl.Method("methods", method3)
+
+//throw in some blocks only for this execute call
+tpl.Execute(w, ctx, "content.block", "other.block")
