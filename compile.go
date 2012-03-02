@@ -13,9 +13,6 @@ type valueType interface {
 	Value(*context) interface{}
 }
 
-type context struct {
-}
-
 type executer interface {
 	fmt.Stringer
 	Execute(io.Writer, *context) error
@@ -55,18 +52,19 @@ func (e *executeList) Push(ex executer) {
 }
 
 type parser struct {
-	in   chan token
-	out  chan executer
-	err  chan error
-	end  tokenType
-	last token
-	buf  token
+	in     chan token
+	out    chan executer
+	err    chan error
+	end    tokenType
+	curr   token
+	backed bool
+	errd   token
 }
 
 type parseState func(*parser) parseState
 
 func parse(toks chan token) (ex executer, err error) {
-	return subParse(toks, tokenNoneType)
+	return subParse(&parser{in: toks, errd: tokenNone}, tokenNoneType)
 }
 
 func (p *parser) run() {
@@ -77,7 +75,7 @@ func (p *parser) run() {
 }
 
 func (p *parser) errorf(format string, args ...interface{}) parseState {
-	p.err <- fmt.Errorf(format, args)
+	p.err <- fmt.Errorf(format, args...)
 	return nil
 }
 
@@ -86,7 +84,12 @@ func (p *parser) errExpect(ex, got tokenType) parseState {
 }
 
 func (p *parser) unexpected(t token) parseState {
-	return p.errorf("Unexpected %q", t.typ)
+	// var stack [4096]byte
+	// log.Println(t)
+	// runtime.Stack(stack[:], false)
+	// log.Println(string(stack[:]))
+
+	return p.errorf("Unexpected %q", t)
 }
 
 func (p *parser) accept(tok tokenType) bool {
@@ -98,24 +101,26 @@ func (p *parser) accept(tok tokenType) bool {
 }
 
 func (p *parser) next() token {
-	if b := p.buf; b.typ >= 0 {
-		p.buf = tokenNone
-		return b
+	if p.backed {
+		p.backed = false
+		return p.curr
 	}
-
-	//if we hit an EOF or Error, dont attempt to read any more
-	if p.last.typ == tokenEOF || p.last.typ == tokenError {
-		return p.last
+	if p.errd.typ != tokenNoneType {
+		return p.errd
 	}
-
-	//read and stick in our last read token
-	p.last = <-p.in
-	return p.last
+	p.curr = <-p.in
+	switch p.curr.typ {
+	case tokenEOF, tokenError:
+		p.errd = p.curr
+	}
+	return p.curr
 }
 
 func (p *parser) backup() {
-	p.buf = p.last
-	p.last = tokenNone
+	if p.backed {
+		panic("double backup")
+	}
+	p.backed = true
 }
 
 func (p *parser) peek() (t token) {
@@ -139,13 +144,13 @@ func (p *parser) acceptUntil(tok tokenType) (t []token) {
 	panic("unreachable")
 }
 
-func subParse(in chan token, end tokenType) (ex executer, err error) {
+func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	p := &parser{
-		in:  in,
-		out: make(chan executer),
-		err: make(chan error, 1),
-		end: end,
-		buf: tokenNone, //empty buffer
+		in:   parp.in,
+		out:  make(chan executer),
+		err:  make(chan error, 1),
+		end:  end,
+		errd: tokenNone,
 	}
 	go p.run()
 
@@ -163,10 +168,14 @@ func subParse(in chan token, end tokenType) (ex executer, err error) {
 	default:
 	}
 
+	parp.curr = p.curr
+	parp.backed = p.backed
+	parp.errd = p.errd
+
 	return
 }
 
-func parseText(p *parser) parseState {
+func parseText(p *parser) (s parseState) {
 	//only accept literal, open, and eof
 	switch tok := p.next(); tok.typ {
 	case tokenLiteral:
@@ -175,7 +184,10 @@ func parseText(p *parser) parseState {
 	case tokenOpen:
 		return parseOpen
 	case tokenEOF:
-		return nil
+		if p.end == tokenNoneType {
+			return nil
+		}
+		return p.errorf("unexpected eof. in a %q context", p.end)
 	default:
 		return p.errorf("Unexpected token: %s", tok)
 	}
@@ -199,18 +211,23 @@ func parseOpen(p *parser) parseState {
 		if p.end != tokenIf {
 			return p.errorf("Unexpected else not inside an if context")
 		}
-		//pop out of this sub parser
-		//so that the parseIf can check p.last to see that it was an else
-		//and start another sub parser
 		return nil
 
 	//value calls
 	case isValueType(tok):
+		p.backup()
 		val, s := consumeValue(p)
 		if s != nil {
-			return s
+			return p.errorf(s.Error())
 		}
+
+		//grab the close
+		if t := p.next(); t.typ != tokenClose {
+			return p.errExpect(tokenClose, t.typ)
+		}
+
 		p.out <- val
+		return parseText
 
 	//end tag
 	case tok.typ == tokenEnd:
@@ -273,7 +290,13 @@ func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
 }
 
 func (s selectorValue) String() string {
-	return "[selector value]"
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "[selector")
+	for _, tok := range s {
+		fmt.Fprintf(&buf, " %s", tok)
+	}
+	fmt.Fprint(&buf, "]")
+	return buf.String()
 }
 
 type constantValue []byte
@@ -288,7 +311,7 @@ func (s constantValue) Execute(w io.Writer, c *context) (err error) {
 }
 
 func (s constantValue) String() string {
-	return "[constat value]"
+	return fmt.Sprintf("[constant %q]", s.Value(nil))
 }
 
 type callValue struct {
@@ -307,7 +330,7 @@ func (s callValue) Execute(w io.Writer, c *context) (err error) {
 
 func (s callValue) String() string {
 	var buf bytes.Buffer
-	fmt.Fprint(&buf, "[call")
+	fmt.Fprintf(&buf, "[call %s", string(s.name))
 	for _, v := range s.args {
 		fmt.Fprintf(&buf, " %s", v)
 	}
@@ -315,7 +338,7 @@ func (s callValue) String() string {
 	return buf.String()
 }
 
-func consumeValue(p *parser) (valueType, parseState) {
+func consumeValue(p *parser) (valueType, error) {
 	switch tok := p.next(); tok.typ {
 	case tokenStartSel, tokenValue, tokenNumeric:
 		p.backup()
@@ -324,14 +347,14 @@ func consumeValue(p *parser) (valueType, parseState) {
 		//grab the name identifier
 		name := p.next()
 		if name.typ != tokenIdent {
-			return nil, p.errExpect(tokenIdent, name.typ)
+			return nil, fmt.Errorf("Expected %q got %q", tokenIdent, name.typ)
 		}
 		//grab values until p.peek() is a tokenClose
 		values := []valueType{}
 		for p.peek().typ != tokenClose {
 			//check for error types
 			if n := p.peek(); n.typ == tokenEOF || n.typ == tokenError {
-				return nil, p.unexpected(n)
+				return nil, fmt.Errorf("unexpected %q", n)
 			}
 
 			//consume a basic value
@@ -343,23 +366,21 @@ func consumeValue(p *parser) (valueType, parseState) {
 			//append it
 			values = append(values, val)
 		}
-		if !p.accept(tokenClose) {
-			panic("didnt find a token close when totally should have")
-		}
+
 		return callValue{name.dat, values}, nil
 	default:
-		return nil, p.errorf("Expected a value type got got a %q", tok.typ)
+		return nil, fmt.Errorf("Expected a value type got a %q", tok.typ)
 	}
 	return nil, nil
 }
 
-func consumeBasicValue(p *parser) (valueType, parseState) {
+func consumeBasicValue(p *parser) (valueType, error) {
 	switch tok := p.next(); tok.typ {
 	case tokenStartSel:
 		toks := p.acceptUntil(tokenEndSel)
 		//consume the end sel
 		if p.next().typ != tokenEndSel {
-			return nil, p.errExpect(tokenEndSel, p.last.typ)
+			return nil, fmt.Errorf("Expected %q got %q", tokenEndSel, p.curr.typ)
 		}
 		return selectorValue(toks), nil
 	case tokenValue:
@@ -367,11 +388,11 @@ func consumeBasicValue(p *parser) (valueType, parseState) {
 	case tokenNumeric:
 		b := numericToByte(tok)
 		if b == nil {
-			return nil, p.errorf("Invalid numeric literal: %q", string(tok.dat))
+			return nil, fmt.Errorf("Invalid numeric literal: %q", string(tok.dat))
 		}
 		return constantValue(b), nil
 	default:
-		return nil, p.errorf("Expected a value type got got a %q", tok.typ)
+		return nil, fmt.Errorf("Expected a value type got got a %q", tok.typ)
 	}
 	return nil, nil
 }
@@ -387,10 +408,10 @@ func (e *executeBlock) Execute(w io.Writer, c *context) (err error) {
 }
 
 func (e *executeBlock) String() string {
-	return fmt.Sprintf("[block]%s", e.ident)
+	return fmt.Sprintf("[block %s %v] %s", e.ident, e.ctx, e.ex)
 }
 
-func parseBlock(p *parser) (s parseState) {
+func parseBlock(p *parser) parseState {
 	//grab the name
 	ident := p.next()
 	if ident.typ != tokenIdent {
@@ -400,14 +421,20 @@ func parseBlock(p *parser) (s parseState) {
 	//see if we have a value type
 	var ctx valueType
 	if isValueType(p.peek()) {
-		ctx, s = consumeValue(p)
-		if s != nil {
-			return
+		var err error
+		ctx, err = consumeValue(p)
+		if err != nil {
+			return p.errorf(err.Error())
 		}
 	}
 
+	//consume the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok.typ)
+	}
+
 	//start a sub parser looking for an end block
-	ex, err := subParse(p.in, tokenBlock)
+	ex, err := subParse(p, tokenBlock)
 	if err != nil {
 		return p.errorf(err.Error())
 	}
@@ -426,17 +453,22 @@ func (e *executeWith) Execute(w io.Writer, c *context) (err error) {
 }
 
 func (e *executeWith) String() string {
-	return fmt.Sprintf("[with]")
+	return fmt.Sprintf("[with %s] %s", e.ctx, e.ex)
 }
 
 func parseWith(p *parser) parseState {
 	//grab the value type
 	ctx, st := consumeValue(p)
 	if st != nil {
-		return st
+		return p.errorf(st.Error())
 	}
 
-	ex, err := subParse(p.in, tokenWith)
+	//grab the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok.typ)
+	}
+
+	ex, err := subParse(p, tokenWith)
 	if err != nil {
 		return p.errorf(err.Error())
 	}
@@ -455,17 +487,22 @@ func (e *executeRange) Execute(w io.Writer, c *context) (err error) {
 }
 
 func (e *executeRange) String() string {
-	return fmt.Sprintf("[range]")
+	return fmt.Sprintf("[range %s] %s", e.iter, e.ex)
 }
 
 func parseRange(p *parser) parseState {
 	//grab the value type
 	ctx, st := consumeValue(p)
 	if st != nil {
-		return st
+		return p.errorf(st.Error())
 	}
 
-	ex, err := subParse(p.in, tokenRange)
+	//grab the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok.typ)
+	}
+
+	ex, err := subParse(p, tokenRange)
 	if err != nil {
 		return p.errorf(err.Error())
 	}
@@ -486,29 +523,42 @@ func (e *executeIf) Execute(w io.Writer, c *context) (err error) {
 
 func (e *executeIf) String() string {
 	if e.fail != nil {
-		return fmt.Sprintf("[if else]")
+		return fmt.Sprintf("[if else %s] %s | %s", e.cond, e.succ, e.fail)
 	}
-	return fmt.Sprintf("[if]")
+	return fmt.Sprintf("[if %s] %s", e.cond, e.succ)
 }
 
 func parseIf(p *parser) parseState {
 	//grab the value
 	cond, st := consumeValue(p)
 	if st != nil {
-		return st
+		return p.errorf(st.Error())
+	}
+
+	//grab the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok.typ)
 	}
 
 	//start a sub parser for succ
-	succ, err := subParse(p.in, tokenIf)
+	succ, err := subParse(p, tokenIf)
 	if err != nil {
 		return p.errorf(err.Error())
 	}
 
+	//backup to check how we exited
+	p.backup()
+
 	var fail executer
 	switch tok := p.next(); tok.typ {
 	case tokenElse:
+		//grab the close
+		if tok := p.next(); tok.typ != tokenClose {
+			return p.errExpect(tokenClose, tok.typ)
+		}
+
 		var err error
-		fail, err = subParse(p.in, tokenIf)
+		fail, err = subParse(p, tokenIf)
 		if err != nil {
 			return p.errorf(err.Error())
 		}
