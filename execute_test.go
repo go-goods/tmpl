@@ -35,6 +35,21 @@ func TestExecutePositiveIf(t *testing.T) {
 	}
 }
 
+func TestExecutePositiveIfElseNotTaken(t *testing.T) {
+	const lit = `{% if 1 %}test{% else %}fail{% end if %}`
+	tree, err := parse(lex([]byte(lit)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := tree.Execute(&buf, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, ex := buf.String(), `test`; got != ex {
+		t.Fatalf("\nGot %q\nExp %q", got, ex)
+	}
+}
+
 func TestDefaultBlock(t *testing.T) {
 	const lit = `{% block foo %}test{% end block %}`
 	tree, err := parse(lex([]byte(lit)))
