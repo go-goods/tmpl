@@ -10,6 +10,7 @@ import (
 
 type tokenType int
 
+//TODO: unicode support
 const identifierLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"
 
 const (
@@ -32,12 +33,22 @@ const (
 	tokenStartSel                  // sent at the start of a selector like .foo$bar
 	tokenEndSel                    // sent at the end of a select like .foo$bar
 	tokenError                     // error type
+
+	//special sentinal value used in the parser
+	tokenNoneType tokenType = -1
 )
 
 var tokenNames = []string{
 	"open", "close", "call", "push", "pop", "value", "numeric", "ident",
 	"block", "if", "else", "with", "range", "end", "literal", "eof", "startSel",
 	"endSel", "error",
+}
+
+func (t tokenType) String() string {
+	if t == -1 {
+		return "NONE"
+	}
+	return tokenNames[t]
 }
 
 const eof rune = -1
@@ -68,6 +79,8 @@ type token struct {
 	typ tokenType
 	dat []byte
 }
+
+var tokenNone = token{tokenNoneType, nil}
 
 func (t token) String() string {
 	return fmt.Sprintf("[%s]%s", tokenNames[t.typ], t.dat)
