@@ -27,3 +27,12 @@ func TestAllTokensNamed(t *testing.T) {
 		t.Fatalf("%d tokens %d names", tokenError+1, len(tokenNames))
 	}
 }
+
+func TestNumeric(t *testing.T) {
+	const code = `{% with 25 %}`
+	for token := range lex([]byte(code)) {
+		if token.typ == tokenError {
+			t.Error("Unexpected error:", token)
+		}
+	}
+}

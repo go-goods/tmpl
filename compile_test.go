@@ -34,7 +34,8 @@ func TestParseBasic(t *testing.T) {
 	{% end block %}
 	{% if "foo" %}
 		always!
-	{% end if %}{% if "foo" %}{% else %}doof{% end if %}`)
+	{% end if %}{% if "foo" %}{% else %}doof{% end if %}
+	{% with 25 %}{% . %}{% end with %}`)
 	ch := lex(code)
 	out := make(chan token)
 	go func() {
