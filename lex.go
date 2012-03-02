@@ -76,22 +76,25 @@ var (
 )
 
 type token struct {
-	typ tokenType
-	dat []byte
+	typ       tokenType
+	dat       []byte
+	line, pos int
 }
 
-var tokenNone = token{tokenNoneType, nil}
+var tokenNone = token{tokenNoneType, nil, 0, 0}
 
 func (t token) String() string {
-	return fmt.Sprintf("[%s]%s", tokenNames[t.typ], t.dat)
+	return fmt.Sprintf("%d:%d[%s]%s", t.line, t.pos, tokenNames[t.typ], t.dat)
 }
 
 type lexer struct {
-	data  []byte
-	pos   int
-	tail  int
-	width int
-	pipe  chan token
+	data   []byte
+	pos    int
+	lines  int
+	lastnl int
+	tail   int
+	width  int
+	pipe   chan token
 }
 
 type lexerState func(l *lexer) lexerState
@@ -142,9 +145,19 @@ func (l *lexer) backup() {
 
 //emit sends out the current token with the given type
 func (l *lexer) emit(typ tokenType) {
+	//figure out how many more newlines to add
+	dat := l.slice()
+	newlines := bytes.Count(dat, []byte{'\n'})
+	l.lines += newlines
+	if newlines > 0 {
+		l.lastnl = l.tail + bytes.LastIndex(dat, []byte{'\n'}) - 1
+	}
+
 	l.pipe <- token{
-		typ: typ,
-		dat: l.slice(),
+		typ:  typ,
+		dat:  dat,
+		pos:  l.pos - l.lastnl - len(dat),
+		line: l.lines,
 	}
 	l.advance()
 }

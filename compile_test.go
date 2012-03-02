@@ -44,18 +44,19 @@ func TestParseBasic(t *testing.T) {
 		}
 		close(out)
 	}()
-	_, err := parse(out)
+	tree, err := parse(out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// t.Log(tree)
+	_ = tree
+	t.Log(tree)
 }
 
 func TestParsePeek(t *testing.T) {
 	in := make(chan token)
 	go func() {
 		for i := 0; i < 10; i++ {
-			in <- token{tokenType(i), nil}
+			in <- token{tokenType(i), nil, 0, 0}
 		}
 	}()
 	p := &parser{
