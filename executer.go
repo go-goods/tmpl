@@ -52,7 +52,12 @@ type executeBlock struct {
 }
 
 func (e *executeBlock) Execute(w io.Writer, c *context) (err error) {
-	return nil
+	//ask the context for the most up to date executer
+	if ex := c.GetBlock(e.ident); ex != nil {
+		return ex.Execute(w, c)
+	}
+	//default
+	return e.ex.Execute(w, c)
 }
 
 func (e *executeBlock) String() string {
@@ -65,7 +70,9 @@ type executeWith struct {
 }
 
 func (e *executeWith) Execute(w io.Writer, c *context) (err error) {
-	return nil
+	c.Push(e.ctx.Value(c))
+	defer c.Pop()
+	return e.ex.Execute(w, c)
 }
 
 func (e *executeWith) String() string {
@@ -78,11 +85,18 @@ type executeRange struct {
 }
 
 func (e *executeRange) Execute(w io.Writer, c *context) (err error) {
+	//TODO: have to reflect on the value in order to range it
 	return nil
 }
 
 func (e *executeRange) String() string {
 	return fmt.Sprintf("[range %s] %s", e.iter, e.ex)
+}
+
+func truthy(val interface{}) bool {
+	//returns if the value is "truthy" like nonzero, nonempty, etc.
+	//TODO: reflect on the value and figure it out
+	return true
 }
 
 type executeIf struct {
@@ -92,6 +106,13 @@ type executeIf struct {
 }
 
 func (e *executeIf) Execute(w io.Writer, c *context) (err error) {
+	t := truthy(e.cond.Value(c))
+	if t {
+		return e.succ.Execute(w, c)
+	}
+	if e.fail != nil {
+		return e.fail.Execute(w, c)
+	}
 	return nil
 }
 
