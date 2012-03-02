@@ -5,20 +5,7 @@ import (
 	"testing"
 )
 
-func TestExecuteListString(t *testing.T) {
-	l := executeList{
-		nil,
-		executeList{nil, nil, nil},
-		nil,
-	}
-	l.Push(nil)
-	if l.String() != "[\n\tnil\n\t[\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
-		t.Error("didn't next right")
-	}
-}
-
-func TestParseBasic(t *testing.T) {
-	code := []byte(`
+var code = []byte(`
 	literal
 	{% call func .foo$bar .bar$$baz..foo 2.3 5e7 "boof" %}
 	{% block baz .buff %}
@@ -36,6 +23,26 @@ func TestParseBasic(t *testing.T) {
 		always!
 	{% end if %}{% if "foo" %}{% else %}doof{% end if %}
 	{% with 25 %}{% . %}{% end with %}`)
+
+func BenchmarkParseSpeed(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		parse(lex(code))
+	}
+}
+
+func TestExecuteListString(t *testing.T) {
+	l := executeList{
+		nil,
+		executeList{nil, nil, nil},
+		nil,
+	}
+	l.Push(nil)
+	if l.String() != "[\n\tnil\n\t[\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
+		t.Error("didn't nest right")
+	}
+}
+
+func TestParseBasic(t *testing.T) {
 	ch := lex(code)
 	out := make(chan token)
 	go func() {
@@ -50,7 +57,7 @@ func TestParseBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = tree
-	t.Log(tree)
+	// t.Log(tree)
 }
 
 func TestParsePeek(t *testing.T) {
