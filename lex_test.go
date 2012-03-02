@@ -3,19 +3,9 @@ package tmpl
 import "testing"
 
 func TestWorks(t *testing.T) {
-	const code = `
-		thing
-		{% block foo_bar %}
-			here
-		{% end block %}
-		{% call foo .fab "butt" 123.35 -32 %}
-		bar
-		{% .foo$bar %}
-		{% with "val" %}
-			{% . %}
-		{% end with %}
-	`
+	const code = `{% call .foo$bar .bar$$baz..foo 2.3 5e7 "boof" %}`
 	for token := range lex([]byte(code)) {
+		t.Log(token)
 		if token.typ == tokenError {
 			t.Error("Unexpected error:", token)
 		}

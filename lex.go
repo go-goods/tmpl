@@ -13,28 +13,31 @@ type tokenType int
 const identifierLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"
 
 const (
-	tokenOpen    tokenType = iota // {%
-	tokenClose                    // %}
-	tokenCall                     // call
-	tokenPush                     // .
-	tokenPop                      // $
-	tokenValue                    // "foo"
-	tokenNumeric                  // -123.5
-	tokenIdent                    // foo (push/pop idents)
-	tokenBlock                    // block
-	tokenIf                       // if
-	tokenElse                     // else
-	tokenWith                     // with
-	tokenRange                    // range
-	tokenEnd                      // end
-	tokenLiteral                  // stuff between open/close
-	tokenEOF                      // sent when no data is left
-	tokenError                    // error type
+	tokenOpen     tokenType = iota // {%
+	tokenClose                     // %}
+	tokenCall                      // call
+	tokenPush                      // .
+	tokenPop                       // $
+	tokenValue                     // "foo"
+	tokenNumeric                   // -123.5
+	tokenIdent                     // foo (push/pop idents)
+	tokenBlock                     // block
+	tokenIf                        // if
+	tokenElse                      // else
+	tokenWith                      // with
+	tokenRange                     // range
+	tokenEnd                       // end
+	tokenLiteral                   // stuff between open/close
+	tokenEOF                       // sent when no data is left
+	tokenStartSel                  // sent at the start of a selector like .foo$bar
+	tokenEndSel                    // sent at the end of a select like .foo$bar
+	tokenError                     // error type
 )
 
 var tokenNames = []string{
 	"open", "close", "call", "push", "pop", "value", "numeric", "ident",
-	"block", "if", "else", "with", "range", "end", "literal", "eof", "error",
+	"block", "if", "else", "with", "range", "end", "literal", "eof", "startSel",
+	"endSel", "error",
 }
 
 const eof rune = -1
@@ -57,8 +60,8 @@ var (
 	rangeDelim = delim{[]byte(`range`), tokenRange}
 	endDelim   = delim{[]byte(`end`), tokenEnd}
 
-	insideDelims = []delim{pushDelim, popDelim, callDelim, blockDelim,
-		ifDelim, elseDelim, withDelim, rangeDelim, endDelim}
+	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim,
+		rangeDelim, endDelim}
 )
 
 type token struct {
@@ -194,14 +197,26 @@ func lexText(l *lexer) lexerState {
 
 func lexOpenDelim(l *lexer) lexerState {
 	l.pos += len(openDelim.value)
-	l.emit(tokenOpen)
+	l.emit(openDelim.typ)
 	return lexInsideDelims
 }
 
 func lexCloseDelim(l *lexer) lexerState {
 	l.pos += len(closeDelim.value)
-	l.emit(tokenClose)
+	l.emit(closeDelim.typ)
 	return lexText
+}
+
+func lexPushDelim(l *lexer) lexerState {
+	l.pos += len(pushDelim.value)
+	l.emit(pushDelim.typ)
+	return lexInsideSel
+}
+
+func lexPopDelim(l *lexer) lexerState {
+	l.pos += len(popDelim.value)
+	l.emit(popDelim.typ)
+	return lexInsideSel
 }
 
 func lexInsideDelims(l *lexer) lexerState {
@@ -214,6 +229,11 @@ func lexInsideDelims(l *lexer) lexerState {
 				l.emit(delim.typ)
 				return lexInsideDelims
 			}
+		}
+
+		if bytes.HasPrefix(rest, pushDelim.value) {
+			l.emit(tokenStartSel)
+			return lexInsideSel
 		}
 
 		if bytes.HasPrefix(rest, closeDelim.value) {
@@ -231,14 +251,32 @@ func lexInsideDelims(l *lexer) lexerState {
 		case r == '"':
 			l.advance()
 			return lexValue
-		case r == '.':
-			l.emit(tokenPush)
-			return lexInsideDelims
-		case r == '$':
-			l.emit(tokenPop)
-			return lexInsideDelims
-		case unicode.IsLetter(r):
+		case unicode.IsLetter(r) || r == '_': //go spec
 			return lexIdentifier
+		default:
+			return l.errorf("invalid character: %q", r)
+		}
+	}
+	return nil
+}
+
+func lexInsideSel(l *lexer) lexerState {
+	for {
+		rest := l.data[l.pos:]
+		if bytes.HasPrefix(rest, pushDelim.value) {
+			return lexPushDelim
+		}
+		if bytes.HasPrefix(rest, popDelim.value) {
+			return lexPopDelim
+		}
+		switch r := l.next(); {
+		case unicode.IsLetter(r) || r == '_': //go spec
+			l.acceptRun(identifierLetters)
+			l.emit(tokenIdent)
+			return lexInsideSel
+		case unicode.IsSpace(r):
+			l.emit(tokenEndSel)
+			return lexInsideDelims
 		default:
 			return l.errorf("invalid character: %q", r)
 		}
