@@ -299,16 +299,11 @@ func lexIdentifier(l *lexer) lexerState {
 }
 
 func lexNumber(l *lexer) lexerState {
-	//optional leading sing
+	//optional leading sign
 	l.accept("+-")
-	//is it hex?
-	digits := "0123456789"
-	if l.accept("0") && l.accept("xX") {
-		digits = "0123456789abcdefABCDEF"
-	}
-	l.acceptRun(digits)
+	l.acceptRun("0123456789")
 	if l.accept(".") {
-		l.acceptRun(digits)
+		l.acceptRun("0123456789")
 	}
 	if l.accept("eE") {
 		l.accept("+-")
