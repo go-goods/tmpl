@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+func Parse(data string) (string, error) {
+	ch := lex([]byte(data))
+	tree, err := parse(ch)
+	if err != nil {
+		return "", err
+	}
+	return tree.String(), nil
+}
+
 type valueType interface {
 	executer
 	Value(*context) interface{}

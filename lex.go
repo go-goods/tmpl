@@ -263,6 +263,11 @@ func lexInsideDelims(l *lexer) lexerState {
 			return lexInsideSel
 		}
 
+		if bytes.HasPrefix(rest, popDelim.value) {
+			l.emit(tokenStartSel)
+			return lexInsideSel
+		}
+
 		if bytes.HasPrefix(rest, closeDelim.value) {
 			return lexCloseDelim
 		}

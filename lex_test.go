@@ -13,6 +13,15 @@ func TestWorks(t *testing.T) {
 	}
 }
 
+func TestSelPopStart(t *testing.T) {
+	const code = `{% $foo %}`
+	for token := range lex([]byte(code)) {
+		if token.typ == tokenError {
+			t.Error("Unexpected error:", token)
+		}
+	}
+}
+
 func TestAllTokensNamed(t *testing.T) {
 	if len(tokenNames) != int(tokenError)+1 {
 		t.Fatalf("%d tokens %d names", tokenError+1, len(tokenNames))
