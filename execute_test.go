@@ -5,77 +5,28 @@ import (
 	"testing"
 )
 
-func TestExecuteLiteral(t *testing.T) {
-	const lit = `this is just a literal`
-	tree, err := parse(lex([]byte(lit)))
-	if err != nil {
-		t.Fatal(err)
+func TestExecuteNoContext(t *testing.T) {
+	cases := []struct {
+		templ  string
+		expect string
+	}{
+		{`this is just a literal`, `this is just a literal`},
+		{`{% if 1 %}test{% end if %}`, `test`},
+		{`{% if 1 %}test{% else %}fail{% end if %}`, `test`},
+		{`{% block foo %}test{% end block %}`, `test`},
+		{`t{%%}e{%%}s{%%}t{%%}`, `test`},
 	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, nil); err != nil {
-		t.Fatal(err)
-	}
-	if buf.String() != lit {
-		t.Fatalf("\nGot %q\nExp %q", buf.String(), lit)
-	}
-}
-
-func TestExecutePositiveIf(t *testing.T) {
-	const lit = `{% if 1 %}test{% end if %}`
-	tree, err := parse(lex([]byte(lit)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, nil); err != nil {
-		t.Fatal(err)
-	}
-	if got, ex := buf.String(), `test`; got != ex {
-		t.Fatalf("\nGot %q\nExp %q", got, ex)
-	}
-}
-
-func TestExecutePositiveIfElseNotTaken(t *testing.T) {
-	const lit = `{% if 1 %}test{% else %}fail{% end if %}`
-	tree, err := parse(lex([]byte(lit)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, nil); err != nil {
-		t.Fatal(err)
-	}
-	if got, ex := buf.String(), `test`; got != ex {
-		t.Fatalf("\nGot %q\nExp %q", got, ex)
-	}
-}
-
-func TestDefaultBlock(t *testing.T) {
-	const lit = `{% block foo %}test{% end block %}`
-	tree, err := parse(lex([]byte(lit)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, &context{}); err != nil {
-		t.Fatal(err)
-	}
-	if got, ex := buf.String(), `test`; got != ex {
-		t.Fatalf("\nGot %q\nExp %q", got, ex)
-	}
-}
-
-func TestLiteralChain(t *testing.T) {
-	const lit = `t{%%}e{%%}s{%%}t{%%}`
-	tree, err := parse(lex([]byte(lit)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, &context{}); err != nil {
-		t.Fatal(err)
-	}
-	if got, ex := buf.String(), `test`; got != ex {
-		t.Fatalf("\nGot %q\nExp %q", got, ex)
+	for _, c := range cases {
+		tree, err := parse(lex([]byte(c.templ)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := tree.Execute(&buf, &context{}); err != nil {
+			t.Fatal(err)
+		}
+		if g := buf.String(); g != c.expect {
+			t.Fatalf("\nGot %q\nExp %q", g, c.expect)
+		}
 	}
 }
