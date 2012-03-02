@@ -79,7 +79,7 @@ func (p *parser) errorf(format string, args ...interface{}) parseState {
 	return nil
 }
 
-func (p *parser) errExpect(ex, got tokenType) parseState {
+func (p *parser) errExpect(ex tokenType, got token) parseState {
 	return p.errorf("Expected a %q got a %q", ex, got)
 }
 
@@ -88,7 +88,6 @@ func (p *parser) unexpected(t token) parseState {
 	// log.Println(t)
 	// runtime.Stack(stack[:], false)
 	// log.Println(string(stack[:]))
-
 	return p.errorf("Unexpected %q", t)
 }
 
@@ -223,7 +222,7 @@ func parseOpen(p *parser) parseState {
 
 		//grab the close
 		if t := p.next(); t.typ != tokenClose {
-			return p.errExpect(tokenClose, t.typ)
+			return p.errExpect(tokenClose, t)
 		}
 
 		p.out <- val
@@ -262,10 +261,10 @@ func numericToByte(tok token) (b []byte) {
 func parseEnd(p *parser) parseState {
 	//didn't get the end we're looking for
 	if tok := p.next(); tok.typ != p.end {
-		return p.errExpect(p.end, tok.typ)
+		return p.errExpect(p.end, tok)
 	}
 	if tok := p.next(); tok.typ != tokenClose {
-		return p.errExpect(tokenClose, tok.typ)
+		return p.errExpect(tokenClose, tok)
 	}
 	return nil
 }
@@ -347,7 +346,7 @@ func consumeValue(p *parser) (valueType, error) {
 		//grab the name identifier
 		name := p.next()
 		if name.typ != tokenIdent {
-			return nil, fmt.Errorf("Expected %q got %q", tokenIdent, name.typ)
+			return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
 		}
 		//grab values until p.peek() is a tokenClose
 		values := []valueType{}
@@ -369,7 +368,7 @@ func consumeValue(p *parser) (valueType, error) {
 
 		return callValue{name.dat, values}, nil
 	default:
-		return nil, fmt.Errorf("Expected a value type got a %q", tok.typ)
+		return nil, fmt.Errorf("Expected a value type got a %q", tok)
 	}
 	return nil, nil
 }
@@ -380,7 +379,7 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		toks := p.acceptUntil(tokenEndSel)
 		//consume the end sel
 		if p.next().typ != tokenEndSel {
-			return nil, fmt.Errorf("Expected %q got %q", tokenEndSel, p.curr.typ)
+			return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
 		}
 		return selectorValue(toks), nil
 	case tokenValue:
@@ -392,7 +391,7 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		}
 		return constantValue(b), nil
 	default:
-		return nil, fmt.Errorf("Expected a value type got got a %q", tok.typ)
+		return nil, fmt.Errorf("Expected a value type got got a %q", tok)
 	}
 	return nil, nil
 }
@@ -415,7 +414,7 @@ func parseBlock(p *parser) parseState {
 	//grab the name
 	ident := p.next()
 	if ident.typ != tokenIdent {
-		return p.errExpect(tokenIdent, ident.typ)
+		return p.errExpect(tokenIdent, ident)
 	}
 
 	//see if we have a value type
@@ -430,7 +429,7 @@ func parseBlock(p *parser) parseState {
 
 	//consume the close
 	if tok := p.next(); tok.typ != tokenClose {
-		return p.errExpect(tokenClose, tok.typ)
+		return p.errExpect(tokenClose, tok)
 	}
 
 	//start a sub parser looking for an end block
@@ -465,7 +464,7 @@ func parseWith(p *parser) parseState {
 
 	//grab the close
 	if tok := p.next(); tok.typ != tokenClose {
-		return p.errExpect(tokenClose, tok.typ)
+		return p.errExpect(tokenClose, tok)
 	}
 
 	ex, err := subParse(p, tokenWith)
@@ -499,7 +498,7 @@ func parseRange(p *parser) parseState {
 
 	//grab the close
 	if tok := p.next(); tok.typ != tokenClose {
-		return p.errExpect(tokenClose, tok.typ)
+		return p.errExpect(tokenClose, tok)
 	}
 
 	ex, err := subParse(p, tokenRange)
@@ -537,7 +536,7 @@ func parseIf(p *parser) parseState {
 
 	//grab the close
 	if tok := p.next(); tok.typ != tokenClose {
-		return p.errExpect(tokenClose, tok.typ)
+		return p.errExpect(tokenClose, tok)
 	}
 
 	//start a sub parser for succ
@@ -554,7 +553,7 @@ func parseIf(p *parser) parseState {
 	case tokenElse:
 		//grab the close
 		if tok := p.next(); tok.typ != tokenClose {
-			return p.errExpect(tokenClose, tok.typ)
+			return p.errExpect(tokenClose, tok)
 		}
 
 		var err error

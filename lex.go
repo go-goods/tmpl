@@ -147,17 +147,16 @@ func (l *lexer) backup() {
 func (l *lexer) emit(typ tokenType) {
 	//figure out how many more newlines to add
 	dat := l.slice()
-	newlines := bytes.Count(dat, []byte{'\n'})
-	l.lines += newlines
-	if newlines > 0 {
-		l.lastnl = l.tail + bytes.LastIndex(dat, []byte{'\n'}) - 1
-	}
-
 	l.pipe <- token{
 		typ:  typ,
 		dat:  dat,
-		pos:  l.pos - l.lastnl - len(dat),
+		pos:  l.tail - l.lastnl,
 		line: l.lines,
+	}
+	newlines := bytes.Count(dat, []byte{'\n'})
+	l.lines += newlines
+	if newlines > 0 {
+		l.lastnl = l.tail + bytes.LastIndex(dat, []byte{'\n'}) + 1
 	}
 	l.advance()
 }
@@ -194,8 +193,10 @@ func (l *lexer) peek() (r rune) {
 
 func (l *lexer) errorf(format string, args ...interface{}) lexerState {
 	l.pipe <- token{
-		typ: tokenError,
-		dat: []byte(fmt.Sprintf(format, args...)),
+		typ:  tokenError,
+		dat:  []byte(fmt.Sprintf(format, args...)),
+		pos:  l.tail - l.lastnl,
+		line: l.lines,
 	}
 	return nil
 }
