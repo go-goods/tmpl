@@ -1,6 +1,10 @@
 package tmpl
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"io"
+)
 
 func Parse(data string) (string, error) {
 	ch := lex([]byte(data))
@@ -11,20 +15,57 @@ func Parse(data string) (string, error) {
 	return tree.String(), nil
 }
 
+type parseTree struct {
+	base    executer
+	context *context
+}
+
+func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
+	p.context.Push(ctx)
+	defer p.context.Pop()
+	return p.base.Execute(w, p.context)
+}
+
+func (p *parseTree) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, p.context)
+	fmt.Fprintln(&buf, p.base)
+	return buf.String()
+}
+
 type parser struct {
-	in     chan token
-	out    chan executer
-	err    chan error
-	end    tokenType
-	curr   token
-	backed bool
-	errd   token
+	in     chan token              //token channel
+	out    chan executer           //output channel
+	err    error                   //error during parsing
+	blocks chan *executeBlockValue //block channel
+	end    tokenType               //for subparse to check for the correct end type
+	curr   token                   //currently read token
+	backed bool                    //if we're in a backup state
+	errd   token                   //if a token is an EOF or Error to repeat it forever
 }
 
 type parseState func(*parser) parseState
 
-func parse(toks chan token) (ex executer, err error) {
-	return subParse(&parser{in: toks, errd: tokenNone}, tokenNoneType)
+func parse(toks chan token) (t *parseTree, err error) {
+	t = &parseTree{
+		context: newContext(),
+	}
+	blocks := make(chan *executeBlockValue)
+	go func() {
+		p := &parser{
+			in:     toks,
+			errd:   tokenNone,
+			blocks: blocks,
+		}
+		t.base, err = subParse(p, tokenNoneType)
+		close(blocks)
+	}()
+
+	for b := range blocks {
+		t.context.blocks[b.ident] = b
+	}
+
+	return
 }
 
 func (p *parser) run() {
@@ -35,7 +76,7 @@ func (p *parser) run() {
 }
 
 func (p *parser) errorf(format string, args ...interface{}) parseState {
-	p.err <- fmt.Errorf(format, args...)
+	p.err = fmt.Errorf(format, args...)
 	return nil
 }
 
@@ -105,12 +146,13 @@ func (p *parser) acceptUntil(tok tokenType) (t []token) {
 
 func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	p := &parser{
-		in:   parp.in,
-		out:  make(chan executer),
-		err:  make(chan error, 1),
-		end:  end,
-		errd: tokenNone,
+		in:     parp.in,
+		out:    make(chan executer),
+		end:    end,
+		errd:   tokenNone,
+		blocks: parp.blocks,
 	}
+	//run the parser
 	go p.run()
 
 	//grab our executers
@@ -122,11 +164,9 @@ func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	ex = l
 
 	//grab an error if it happened
-	select {
-	case err = <-p.err:
-	default:
-	}
+	err = p.err
 
+	//set the token state on the parent to make backup/peek work
 	parp.curr = p.curr
 	parp.backed = p.backed
 	parp.errd = p.errd
@@ -241,7 +281,8 @@ func parseBlock(p *parser) parseState {
 		return p.errorf(err.Error())
 	}
 
-	p.out <- &executeBlock{string(ident.dat), ctx, ex}
+	p.blocks <- &executeBlockValue{string(ident.dat), ex}
+	p.out <- &executeBlockDesc{string(ident.dat), ctx}
 	return parseText
 }
 

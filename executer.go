@@ -45,23 +45,24 @@ func (e *executeList) Push(ex executer) {
 	*e = append(*e, ex)
 }
 
-type executeBlock struct {
+type executeBlockValue struct {
+	ident string
+	executer
+}
+
+type executeBlockDesc struct {
 	ident string
 	ctx   valueType
-	ex    executer
 }
 
-func (e *executeBlock) Execute(w io.Writer, c *context) (err error) {
+func (e *executeBlockDesc) Execute(w io.Writer, c *context) (err error) {
 	//ask the context for the most up to date executer
-	if ex := c.GetBlock(e.ident); ex != nil {
-		return ex.Execute(w, c)
-	}
-	//default
-	return e.ex.Execute(w, c)
+	ex := c.GetBlock(e.ident)
+	return ex.Execute(w, c)
 }
 
-func (e *executeBlock) String() string {
-	return fmt.Sprintf("[block %s %v] %s", e.ident, e.ctx, e.ex)
+func (e *executeBlockDesc) String() string {
+	return fmt.Sprintf("[block %s %v]", e.ident, e.ctx)
 }
 
 type executeWith struct {

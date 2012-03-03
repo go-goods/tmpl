@@ -22,7 +22,7 @@ func TestExecuteNoContext(t *testing.T) {
 			t.Fatal(err)
 		}
 		var buf bytes.Buffer
-		if err := tree.Execute(&buf, &context{}); err != nil {
+		if err := tree.Execute(&buf, nil); err != nil {
 			t.Fatal(err)
 		}
 		if g := buf.String(); g != c.expect {
