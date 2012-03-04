@@ -188,6 +188,7 @@ type executeRange struct {
 
 func (e *executeRange) Execute(w io.Writer, c *context) (err error) {
 	//TODO: have to reflect on the value in order to range it
+	//be sure to look at e.key and e.val to set/unset the vars
 	return nil
 }
 
