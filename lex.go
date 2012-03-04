@@ -87,10 +87,11 @@ var (
 	elseDelim  = delim{[]byte(`else`), tokenElse}
 	withDelim  = delim{[]byte(`with`), tokenWith}
 	rangeDelim = delim{[]byte(`range`), tokenRange}
+	setDelim   = delim{[]byte(`set`), tokenSet}
 	asDelim    = delim{[]byte(`as`), tokenAs}
 	endDelim   = delim{[]byte(`end`), tokenEnd}
 
-	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, endDelim, asDelim}
+	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, setDelim, endDelim, asDelim}
 	selDelims    = []delim{pushDelim, popDelim, varDelim}
 )
 
