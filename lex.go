@@ -19,15 +19,19 @@ const (
 	tokenCall                      // call
 	tokenPush                      // .
 	tokenPop                       // $
+	tokenVar                       // ^
 	tokenValue                     // "foo"
 	tokenNumeric                   // -123.5
 	tokenIdent                     // foo (push/pop idents)
+	tokenAs                        // as
 	tokenBlock                     // block
 	tokenIf                        // if
 	tokenElse                      // else
+	tokenSet                       // set
 	tokenWith                      // with
 	tokenRange                     // range
 	tokenEnd                       // end
+	tokenComment                   // comment
 	tokenLiteral                   // stuff between open/close
 	tokenEOF                       // sent when no data is left
 	tokenStartSel                  // sent at the start of a selector like .foo$bar
@@ -38,10 +42,15 @@ const (
 	tokenNoneType tokenType = -1
 )
 
+var (
+	commentOpen  = []byte(`{#`)
+	commentClose = []byte(`#}`)
+)
+
 var tokenNames = []string{
-	"open", "close", "call", "push", "pop", "value", "numeric", "ident",
-	"block", "if", "else", "with", "range", "end", "literal", "eof", "startSel",
-	"endSel", "error",
+	"open", "close", "call", "push", "pop", "var", "value", "numeric", "ident",
+	"as", "block", "if", "else", "set", "with", "range", "end", "comment",
+	"literal", "eof", "startSel", "endSel", "error",
 }
 
 func (t tokenType) String() string {
@@ -71,16 +80,18 @@ var (
 	closeDelim = delim{[]byte(`%}`), tokenClose}
 	pushDelim  = delim{[]byte(`.`), tokenPush}
 	popDelim   = delim{[]byte(`$`), tokenPop}
+	varDelim   = delim{[]byte(`^`), tokenVar}
 	callDelim  = delim{[]byte(`call`), tokenCall}
 	blockDelim = delim{[]byte(`block`), tokenBlock}
 	ifDelim    = delim{[]byte(`if`), tokenIf}
 	elseDelim  = delim{[]byte(`else`), tokenElse}
 	withDelim  = delim{[]byte(`with`), tokenWith}
 	rangeDelim = delim{[]byte(`range`), tokenRange}
+	asDelim    = delim{[]byte(`as`), tokenAs}
 	endDelim   = delim{[]byte(`end`), tokenEnd}
 
-	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim,
-		rangeDelim, endDelim}
+	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, endDelim, asDelim}
+	selDelims    = []delim{pushDelim, popDelim, varDelim}
 )
 
 type token struct {
@@ -211,6 +222,7 @@ func (l *lexer) errorf(format string, args ...interface{}) lexerState {
 
 func lexText(l *lexer) lexerState {
 	for {
+		//open tags
 		if bytes.HasPrefix(l.data[l.pos:], openDelim.value) {
 			//check if we should emit
 			if l.pos > l.tail {
@@ -218,14 +230,28 @@ func lexText(l *lexer) lexerState {
 			}
 			return lexOpenDelim
 		}
+
+		//comments
+		if bytes.HasPrefix(l.data[l.pos:], commentOpen) {
+			//check if we should emit
+			if l.pos > l.tail {
+				l.emit(tokenLiteral)
+			}
+			return lexComment
+		}
+
+		//check for eof
 		if l.next() == eof {
 			break
 		}
 	}
+
 	//correctly reached an eof
 	if l.pos > l.tail {
 		l.emit(tokenLiteral)
 	}
+
+	//send an eof
 	l.emit(tokenEOF)
 	return nil
 }
@@ -254,6 +280,12 @@ func lexPopDelim(l *lexer) lexerState {
 	return lexInsideSel
 }
 
+func lexVarDelim(l *lexer) lexerState {
+	l.pos += len(varDelim.value)
+	l.emit(varDelim.typ)
+	return lexInsideSel
+}
+
 func lexInsideDelims(l *lexer) lexerState {
 	for {
 		rest := l.data[l.pos:]
@@ -266,16 +298,15 @@ func lexInsideDelims(l *lexer) lexerState {
 			}
 		}
 
-		if bytes.HasPrefix(rest, pushDelim.value) {
-			l.emit(tokenStartSel)
-			return lexInsideSel
+		//check for things that start selectors
+		for _, delim := range selDelims {
+			if bytes.HasPrefix(rest, delim.value) {
+				l.emit(tokenStartSel)
+				return lexInsideSel
+			}
 		}
 
-		if bytes.HasPrefix(rest, popDelim.value) {
-			l.emit(tokenStartSel)
-			return lexInsideSel
-		}
-
+		//check for a close delim
 		if bytes.HasPrefix(rest, closeDelim.value) {
 			return lexCloseDelim
 		}
@@ -300,6 +331,17 @@ func lexInsideDelims(l *lexer) lexerState {
 	return nil
 }
 
+func lexComment(l *lexer) lexerState {
+	for !bytes.HasPrefix(l.data[l.pos:], commentClose) {
+		if l.next() == eof {
+			return l.errorf("unexpected eof in comment")
+		}
+	}
+	l.pos += len(commentClose)
+	l.emit(tokenComment)
+	return lexText
+}
+
 func lexInsideSel(l *lexer) lexerState {
 	for {
 		rest := l.data[l.pos:]
@@ -308,6 +350,9 @@ func lexInsideSel(l *lexer) lexerState {
 		}
 		if bytes.HasPrefix(rest, popDelim.value) {
 			return lexPopDelim
+		}
+		if bytes.HasPrefix(rest, varDelim.value) {
+			return lexVarDelim
 		}
 		switch r := l.next(); {
 		case unicode.IsLetter(r) || r == '_': //go spec
