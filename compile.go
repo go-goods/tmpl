@@ -220,6 +220,8 @@ func parseOpen(p *parser) parseState {
 		return parseRange
 	case tok.typ == tokenIf:
 		return parseIf
+	case tok.typ == tokenSet:
+		return parseSet
 
 	//very special call to handle else
 	case tok.typ == tokenElse:
@@ -323,11 +325,50 @@ func parseWith(p *parser) parseState {
 	return parseText
 }
 
+func parseSet(p *parser) parseState {
+	//grab the identifier
+	key := tokenNone
+	if key = p.next(); key.typ != tokenIdent {
+		return p.errExpect(tokenIdent, key)
+	}
+
+	//grab the value type
+	val, st := consumeValue(p)
+	if st != nil {
+		return p.errorf(st.Error())
+	}
+
+	//grab the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok)
+	}
+
+	p.out <- &executeSet{key, val}
+	return parseText
+}
+
 func parseRange(p *parser) parseState {
 	//grab the value type
 	ctx, st := consumeValue(p)
 	if st != nil {
 		return p.errorf(st.Error())
+	}
+
+	//default to none
+	key, val := tokenNone, tokenNone
+
+	//check for an as
+	if tok := p.next(); tok.typ == tokenAs {
+		//grab two idenitifers
+		if key = p.next(); key.typ != tokenIdent {
+			return p.errExpect(tokenIdent, key)
+		}
+		if val = p.next(); val.typ != tokenIdent {
+			return p.errExpect(tokenIdent, key)
+		}
+	} else {
+		//whoops wasn't an as
+		p.backup()
 	}
 
 	//grab the close
@@ -340,7 +381,7 @@ func parseRange(p *parser) parseState {
 		return p.errorf(err.Error())
 	}
 
-	p.out <- &executeRange{ctx, ex}
+	p.out <- &executeRange{ctx, ex, key, val}
 	return parseText
 }
 
