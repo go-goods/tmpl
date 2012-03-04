@@ -34,7 +34,7 @@ func (e executeList) Execute(w io.Writer, c *context) (err error) {
 
 func (e executeList) String() string {
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "[")
+	fmt.Fprintln(&buf, "[list")
 	for _, ex := range e {
 		if ex != nil {
 			fmt.Fprintf(&buf, "\t%s\n", strings.Replace(ex.String(), "\n", "\n\t", -1))

@@ -21,6 +21,9 @@ type parseTree struct {
 }
 
 func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
+	if p.base == nil {
+		return nil
+	}
 	p.context.Push(ctx)
 	defer p.context.Pop()
 	return p.base.Execute(w, p.context)
@@ -167,8 +170,14 @@ func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	//compact the list for execute efficiency
 	l.compact()
 
-	//set our executer
-	ex = l
+	//set our executer, dropping the list if it is one element
+	switch len(l) {
+	case 0:
+	case 1:
+		ex = l[0]
+	default:
+		ex = l
+	}
 
 	//grab an error if it happened
 	err = p.err

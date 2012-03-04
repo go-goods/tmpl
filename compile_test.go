@@ -37,7 +37,7 @@ func TestExecuteListString(t *testing.T) {
 		nil,
 	}
 	l.Push(nil)
-	if l.String() != "[\n\tnil\n\t[\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
+	if l.String() != "[list\n\tnil\n\t[list\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
 		t.Error("didn't nest right")
 	}
 }
@@ -57,7 +57,7 @@ func TestParseBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = tree
-	// t.Log(tree)
+	t.Log(tree)
 }
 
 func TestParsePeek(t *testing.T) {
