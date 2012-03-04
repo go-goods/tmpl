@@ -9,12 +9,14 @@ import (
 type context struct {
 	stack  []interface{}
 	blocks map[string]executer
+	vars   map[string]interface{}
 }
 
 func newContext() *context {
 	return &context{
 		stack:  []interface{}{},
 		blocks: map[string]executer{},
+		vars:   map[string]interface{}{},
 	}
 }
 
@@ -48,4 +50,23 @@ func (c *context) Current() interface{} {
 func (c *context) Pop() {
 	//slice off the last value
 	c.stack = c.stack[:len(c.stack)-1]
+}
+
+//perhaps make these just internal details rather than methods
+//set and get for vars
+func (c *context) Set(key string, val interface{}) {
+	c.vars[key] = val
+}
+
+func (c *context) Get(key string) interface{} {
+	return c.vars[key]
+}
+
+func (c *context) Unset(key string) {
+	delete(c.vars, key)
+}
+
+func (c *context) Exists(key string) (ex bool) {
+	_, ex = c.vars[key]
+	return
 }

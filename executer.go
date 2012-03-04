@@ -168,6 +168,7 @@ type executeSet struct {
 
 func (e *executeSet) Execute(w io.Writer, c *context) (err error) {
 	//set the context key to the value
+	c.Set(string(e.key.dat), e.val.Value(c))
 	return nil
 }
 
