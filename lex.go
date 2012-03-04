@@ -51,6 +51,14 @@ func (t tokenType) String() string {
 	return tokenNames[t]
 }
 
+func isErrorType(t tokenType) bool {
+	switch t {
+	case tokenEOF, tokenError:
+		return true
+	}
+	return false
+}
+
 const eof rune = -1
 
 type delim struct {

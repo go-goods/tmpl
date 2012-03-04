@@ -12,6 +12,22 @@ type valueType interface {
 	Value(*context) interface{}
 }
 
+// ***********
+// * Helpers *
+// ***********
+
+func isConstantValue(v valueType) bool {
+	switch v.(type) {
+	case intValue, floatValue, constantValue:
+		return true
+	}
+	return false
+}
+
+// *******************
+// * Parsing Helpers *
+// *******************
+
 func isValueType(tok token) bool {
 	switch tok.typ {
 	case tokenStartSel, tokenCall, tokenValue, tokenNumeric:
@@ -42,34 +58,31 @@ func consumeValue(p *parser) (valueType, error) {
 		p.backup()
 		return consumeBasicValue(p)
 	case tokenCall:
-		//grab the name identifier
-		name := p.next()
-		if name.typ != tokenIdent {
-			return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
-		}
-		//grab values until p.peek() is a tokenClose
-		values := []valueType{}
-		for p.peek().typ != tokenClose {
-			//check for error types
-			if n := p.peek(); n.typ == tokenEOF || n.typ == tokenError {
-				return nil, fmt.Errorf("unexpected %q", n)
-			}
-
-			//consume a basic value
-			val, err := consumeBasicValue(p)
-			if err != nil {
-				return nil, err
-			}
-
-			//append it
-			values = append(values, val)
-		}
-
-		return callValue{name.dat, values}, nil
+		return consumeCallValue(p)
 	default:
 		return nil, fmt.Errorf("Expected a value type got a %q", tok)
 	}
 	return nil, nil
+}
+
+func consumeCallValue(p *parser) (valueType, error) {
+	//grab the name identifier
+	name := p.next()
+	if name.typ != tokenIdent {
+		return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
+	}
+	//grab values until p.peek() is a tokenClose
+	values := []valueType{}
+	for p.peek().typ != tokenClose {
+		//consume a basic value
+		val, err := consumeBasicValue(p)
+		if err != nil {
+			return nil, err
+		}
+		//append it
+		values = append(values, val)
+	}
+	return callValue{name.dat, values}, nil
 }
 
 func consumeBasicValue(p *parser) (valueType, error) {
@@ -90,6 +103,10 @@ func consumeBasicValue(p *parser) (valueType, error) {
 	}
 	return nil, nil
 }
+
+// ******************
+// * Selector Value *
+// ******************
 
 type selectorValue []token
 
@@ -112,50 +129,9 @@ func (s selectorValue) String() string {
 	return buf.String()
 }
 
-type intValue int64
-
-func (s intValue) Value(c *context) interface{} {
-	return int64(s)
-}
-
-func (s intValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
-	return
-}
-
-func (s intValue) String() string {
-	return fmt.Sprintf("[int %v]", s.Value(nil))
-}
-
-type floatValue float64
-
-func (s floatValue) Value(c *context) interface{} {
-	return float64(s)
-}
-
-func (s floatValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
-	return
-}
-
-func (s floatValue) String() string {
-	return fmt.Sprintf("[float %f]", s.Value(nil))
-}
-
-type constantValue []byte
-
-func (s constantValue) Value(c *context) interface{} {
-	return string(s)
-}
-
-func (s constantValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
-	return
-}
-
-func (s constantValue) String() string {
-	return fmt.Sprintf("[constant %q]", s.Value(nil))
-}
+// **************
+// * Call Value *
+// **************
 
 type callValue struct {
 	name []byte
@@ -179,4 +155,77 @@ func (s callValue) String() string {
 	}
 	fmt.Fprint(&buf, "]")
 	return buf.String()
+}
+
+// ************************
+// * CONSTANT VALUE TYPES *
+// ************************
+
+// *************
+// * Int Value *
+// *************
+
+type intValue int64
+
+func (s intValue) Value(c *context) interface{} {
+	return int64(s)
+}
+
+func (s intValue) Execute(w io.Writer, c *context) (err error) {
+	_, err = fmt.Fprint(w, s.Value(c))
+	return
+}
+
+func (s intValue) String() string {
+	return fmt.Sprintf("[int %v]", s.Value(nil))
+}
+
+func (s intValue) Byte() []byte {
+	return []byte(s.String())
+}
+
+// ***************
+// * Float Value *
+// ***************
+
+type floatValue float64
+
+func (s floatValue) Value(c *context) interface{} {
+	return float64(s)
+}
+
+func (s floatValue) Execute(w io.Writer, c *context) (err error) {
+	_, err = fmt.Fprint(w, s.Value(c))
+	return
+}
+
+func (s floatValue) String() string {
+	return fmt.Sprintf("[float %f]", s.Value(nil))
+}
+
+func (s floatValue) Byte() []byte {
+	return []byte(s.String())
+}
+
+// *************************
+// * String Constant Value *
+// *************************
+
+type constantValue []byte
+
+func (s constantValue) Value(c *context) interface{} {
+	return string(s)
+}
+
+func (s constantValue) Execute(w io.Writer, c *context) (err error) {
+	_, err = fmt.Fprint(w, s.Value(c))
+	return
+}
+
+func (s constantValue) String() string {
+	return fmt.Sprintf("[constant %q]", s.Value(nil))
+}
+
+func (s *constantValue) Append(p []byte) {
+	*s = append(*s, p...)
 }

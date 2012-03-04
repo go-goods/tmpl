@@ -34,14 +34,19 @@ func (p *parseTree) String() string {
 }
 
 type parser struct {
-	in     chan token              //token channel
-	out    chan executer           //output channel
-	err    error                   //error during parsing
-	blocks chan *executeBlockValue //block channel
-	end    tokenType               //for subparse to check for the correct end type
-	curr   token                   //currently read token
-	backed bool                    //if we're in a backup state
-	errd   token                   //if a token is an EOF or Error to repeat it forever
+	//parser setup
+	in  chan token    //token channel
+	out chan executer //output channel
+	err error         //error during parsing
+	end tokenType     //for subparse to check for the correct end type
+
+	//block channel
+	blocks chan *executeBlockValue
+
+	//token state types
+	curr   token //currently read token
+	backed bool  //if we're in a backup state
+	errd   token //if a token is an EOF or Error to repeat it forever
 }
 
 type parseState func(*parser) parseState
@@ -109,8 +114,7 @@ func (p *parser) next() token {
 		return p.errd
 	}
 	p.curr = <-p.in
-	switch p.curr.typ {
-	case tokenEOF, tokenError:
+	if isErrorType(p.curr.typ) {
 		p.errd = p.curr
 	}
 	return p.curr
@@ -132,11 +136,11 @@ func (p *parser) peek() (t token) {
 func (p *parser) acceptUntil(tok tokenType) (t []token) {
 	for {
 		curr := p.next()
-		switch curr.typ {
-		case tok:
+		switch typ := curr.typ; {
+		case typ == tok:
 			p.backup()
 			return
-		case tokenEOF, tokenError: //eof and error signify no more tokens
+		case isErrorType(typ): //eof and error signify no more tokens
 			return
 		}
 		t = append(t, curr)
@@ -160,7 +164,10 @@ func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	for e := range p.out {
 		l.Push(e)
 	}
+	//compact the list for execute efficiency
+	l.compact()
 
+	//set our executer
 	ex = l
 
 	//grab an error if it happened
