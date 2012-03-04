@@ -57,7 +57,7 @@ func TestParseBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = tree
-	t.Log(tree)
+	// t.Log(tree)
 }
 
 func TestParsePeek(t *testing.T) {
