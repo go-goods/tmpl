@@ -305,7 +305,7 @@ func lexInsideDelims(l *lexer) lexerState {
 		}
 
 		switch r := l.next(); {
-		case r == eof || r == '\n':
+		case r == eof || r == '\n' || r == '\r':
 			return l.errorf("unclosed action")
 		case unicode.IsSpace(r):
 			l.advance()
