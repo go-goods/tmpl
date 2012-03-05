@@ -25,6 +25,7 @@ const (
 	tokenIdent                     // foo (push/pop idents)
 	tokenAs                        // as
 	tokenBlock                     // block
+	tokenEvoke                     // evoke
 	tokenIf                        // if
 	tokenElse                      // else
 	tokenWith                      // with
@@ -48,8 +49,8 @@ var (
 
 var tokenNames = []string{
 	"open", "close", "call", "push", "pop", "root", "value", "numeric", "ident",
-	"as", "block", "if", "else", "with", "range", "end", "comment", "literal",
-	"eof", "startSel", "endSel", "error",
+	"as", "block", "evoke", "if", "else", "with", "range", "end", "comment",
+	"literal", "eof", "startSel", "endSel", "error",
 }
 
 func (t tokenType) String() string {
@@ -82,6 +83,7 @@ var (
 	rootDelim  = delim{[]byte(`/`), tokenRoot}
 	callDelim  = delim{[]byte(`call`), tokenCall}
 	blockDelim = delim{[]byte(`block`), tokenBlock}
+	evokeDelim = delim{[]byte(`evoke`), tokenEvoke}
 	ifDelim    = delim{[]byte(`if`), tokenIf}
 	elseDelim  = delim{[]byte(`else`), tokenElse}
 	withDelim  = delim{[]byte(`with`), tokenWith}
@@ -89,7 +91,7 @@ var (
 	asDelim    = delim{[]byte(`as`), tokenAs}
 	endDelim   = delim{[]byte(`end`), tokenEnd}
 
-	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, endDelim, asDelim}
+	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, endDelim, asDelim, evokeDelim}
 	selDelims    = []delim{pushDelim, popDelim, rootDelim}
 )
 
