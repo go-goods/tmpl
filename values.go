@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 )
 
 type valueType interface {
 	executer
-	Value(*context) interface{}
+	Value(*context) (interface{}, error)
 }
 
 // ***********
@@ -104,33 +105,82 @@ func consumeBasicValue(p *parser) (valueType, error) {
 	return nil, nil
 }
 
+func createSelector(toks []token) valueType {
+	return nil
+}
+
+func walkPath(r reflect.Value, path []string) (reflect.Value, error) {
+	return r, nil
+}
+
 // ******************
 // * Selector Value *
 // ******************
 
-type selectorValue []token
+type selectorValue struct {
+	pops int
+	path []string
+}
 
-func (s selectorValue) Value(c *context) interface{} {
-	return nil
+func (s selectorValue) Value(c *context) (interface{}, error) {
+	r, err := c.ContextAt(s.pops)
+	if err != nil {
+		return nil, err
+	}
+	return walkPath(r, s.path)
 }
 
 func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
+	v, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, v)
 	return
 }
 
 func (s selectorValue) String() string {
 	var buf bytes.Buffer
-	fmt.Fprint(&buf, "[selector")
-	for _, tok := range s {
+	fmt.Fprintf(&buf, "[selector $%d", s.pops)
+	for _, tok := range s.path {
 		fmt.Fprintf(&buf, " %s", tok)
 	}
 	fmt.Fprint(&buf, "]")
 	return buf.String()
 }
 
-func createSelector(toks []token) selectorValue {
-	return selectorValue(toks)
+// ******************
+// * Variable value *
+// ******************
+
+type variableValue struct {
+	name string
+	path []string
+}
+
+func (v variableValue) Value(c *context) (interface{}, error) {
+	val := c.Get(v.name)
+	if len(v.path) == 0 {
+		return val, nil
+	}
+	r, err := walkPath(reflect.ValueOf(val), v.path)
+	return r.Interface(), err
+}
+
+func (v variableValue) Execute(w io.Writer, c *context) (err error) {
+	val, err := v.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, val)
+	return
+}
+
+func (v variableValue) String() string {
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "[variable")
+	fmt.Fprint(&buf, "]")
+	return buf.String()
 }
 
 // **************
@@ -142,12 +192,16 @@ type callValue struct {
 	args []valueType
 }
 
-func (s callValue) Value(c *context) interface{} {
-	return nil
+func (s callValue) Value(c *context) (interface{}, error) {
+	return nil, nil
 }
 
 func (s callValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
+	val, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, val)
 	return
 }
 
@@ -171,17 +225,21 @@ func (s callValue) String() string {
 
 type intValue int64
 
-func (s intValue) Value(c *context) interface{} {
-	return int64(s)
+func (s intValue) Value(c *context) (interface{}, error) {
+	return int64(s), nil
 }
 
 func (s intValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
+	val, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, val)
 	return
 }
 
 func (s intValue) String() string {
-	return fmt.Sprintf("[int %v]", s.Value(nil))
+	return fmt.Sprintf("[int %v]", int64(s))
 }
 
 func (s intValue) Byte() []byte {
@@ -194,17 +252,21 @@ func (s intValue) Byte() []byte {
 
 type floatValue float64
 
-func (s floatValue) Value(c *context) interface{} {
-	return float64(s)
+func (s floatValue) Value(c *context) (interface{}, error) {
+	return float64(s), nil
 }
 
 func (s floatValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
+	val, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, val)
 	return
 }
 
 func (s floatValue) String() string {
-	return fmt.Sprintf("[float %f]", s.Value(nil))
+	return fmt.Sprintf("[float %f]", float64(s))
 }
 
 func (s floatValue) Byte() []byte {
@@ -217,17 +279,21 @@ func (s floatValue) Byte() []byte {
 
 type constantValue []byte
 
-func (s constantValue) Value(c *context) interface{} {
-	return string(s)
+func (s constantValue) Value(c *context) (interface{}, error) {
+	return string(s), nil
 }
 
 func (s constantValue) Execute(w io.Writer, c *context) (err error) {
-	_, err = fmt.Fprint(w, s.Value(c))
+	val, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, val)
 	return
 }
 
 func (s constantValue) String() string {
-	return fmt.Sprintf("[constant %q]", s.Value(nil))
+	return fmt.Sprintf("[constant %q]", string(s))
 }
 
 func (s *constantValue) Append(p []byte) {

@@ -43,6 +43,13 @@ func (c *context) Push(val interface{}) {
 	c.stack = append(c.stack, reflect.ValueOf(val))
 }
 
+func (c *context) ContextAt(pops int) (reflect.Value, error) {
+	if pops > len(c.stack) {
+		return reflect.Value{}, fmt.Errorf("too many pops")
+	}
+	return c.stack[len(c.stack)-pops], nil
+}
+
 func (c *context) Pop() {
 	//slice off the last value
 	c.stack = c.stack[:len(c.stack)-1]

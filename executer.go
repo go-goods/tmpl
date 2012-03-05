@@ -148,8 +148,6 @@ type executeWith struct {
 }
 
 func (e *executeWith) Execute(w io.Writer, c *context) (err error) {
-	c.Push(e.ctx.Value(c))
-	defer c.Pop()
 	return e.ex.Execute(w, c)
 }
 
@@ -168,7 +166,11 @@ type executeSet struct {
 
 func (e *executeSet) Execute(w io.Writer, c *context) (err error) {
 	//set the context key to the value
-	c.Set(string(e.key.dat), e.val.Value(c))
+	v, err := e.val.Value(c)
+	if err != nil {
+		return
+	}
+	c.Set(string(e.key.dat), v)
 	return nil
 }
 
@@ -209,7 +211,15 @@ type executeIf struct {
 func (e *executeIf) constValue() (ex executer, isConst bool) {
 	if isConstantValue(e.cond) {
 		isConst = true
-		if truthy(e.cond.Value(nil)) {
+
+		//grab the value. there should never be errors getting the value of a
+		//constant
+		v, err := e.cond.Value(nil)
+		if err != nil {
+			panic(err)
+		}
+
+		if truthy(v) {
 			ex = e.succ
 		} else {
 			ex = e.fail
@@ -219,7 +229,11 @@ func (e *executeIf) constValue() (ex executer, isConst bool) {
 }
 
 func (e *executeIf) Execute(w io.Writer, c *context) (err error) {
-	t := truthy(e.cond.Value(c))
+	v, err := e.cond.Value(c)
+	if err != nil {
+		return
+	}
+	t := truthy(v)
 	if t {
 		return e.succ.Execute(w, c)
 	}
