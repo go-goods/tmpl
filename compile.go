@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func Parse(data string) (string, error) {
@@ -69,8 +70,20 @@ func parse(toks chan token) (t *parseTree, err error) {
 		close(blocks)
 	}()
 
+	var redef []string
 	for b := range blocks {
+		if _, ex := t.context.blocks[b.ident]; ex {
+			redef = append(redef, fmt.Sprintf("Redefined block %s", b.ident))
+		}
 		t.context.blocks[b.ident] = b
+	}
+
+	if redef != nil {
+		err = fmt.Errorf(strings.Join(redef, "\n"))
+	}
+
+	if err != nil {
+		t = nil
 	}
 
 	return
@@ -213,6 +226,10 @@ func parseOpen(p *parser) parseState {
 	switch tok := p.next(); {
 	//advanced calls to start a sub parser
 	case tok.typ == tokenBlock:
+		//check for a sub parse
+		if p.end == tokenBlock {
+			return p.errorf("Can't put a block definition inside of a block defintion. %v", tok)
+		}
 		return parseBlock
 	case tok.typ == tokenWith:
 		return parseWith
@@ -220,6 +237,8 @@ func parseOpen(p *parser) parseState {
 		return parseRange
 	case tok.typ == tokenIf:
 		return parseIf
+	case tok.typ == tokenEvoke:
+		return parseEvoke
 
 	//very special call to handle else
 	case tok.typ == tokenElse:
@@ -269,7 +288,7 @@ func parseEnd(p *parser) parseState {
 	return nil
 }
 
-func parseBlock(p *parser) parseState {
+func parseEvoke(p *parser) parseState {
 	//grab the name
 	ident := p.next()
 	if ident.typ != tokenIdent {
@@ -277,13 +296,29 @@ func parseBlock(p *parser) parseState {
 	}
 
 	//see if we have a value type
-	var ctx valueType
+	var ctx *selectorValue
 	if isValueType(p.peek()) {
 		var err error
-		ctx, err = consumeValue(p)
+		ctx, err = consumeSelector(p)
 		if err != nil {
 			return p.errorf(err.Error())
 		}
+	}
+
+	//grab the close
+	if tok := p.next(); tok.typ != tokenClose {
+		return p.errExpect(tokenClose, tok)
+	}
+
+	p.out <- &executeEvoke{string(ident.dat), ctx}
+	return parseText
+}
+
+func parseBlock(p *parser) parseState {
+	//grab the name
+	ident := p.next()
+	if ident.typ != tokenIdent {
+		return p.errExpect(tokenIdent, ident)
 	}
 
 	//consume the close
@@ -298,13 +333,12 @@ func parseBlock(p *parser) parseState {
 	}
 
 	p.blocks <- &executeBlockValue{string(ident.dat), ex}
-	p.out <- &executeBlockDesc{string(ident.dat), ctx}
 	return parseText
 }
 
 func parseWith(p *parser) parseState {
 	//grab the value type
-	ctx, st := consumeValue(p)
+	ctx, st := consumeSelector(p)
 	if st != nil {
 		return p.errorf(st.Error())
 	}
@@ -325,7 +359,7 @@ func parseWith(p *parser) parseState {
 
 func parseRange(p *parser) parseState {
 	//grab the value type
-	ctx, st := consumeValue(p)
+	ctx, st := consumeSelector(p)
 	if st != nil {
 		return p.errorf(st.Error())
 	}

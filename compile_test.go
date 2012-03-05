@@ -7,22 +7,23 @@ import (
 
 var code = []byte(`
 	literal
-	{% call func .foo$bar .bar$$baz..foo 2.3 5e7 "boof" %}
-	{% block baz .buff %}
+	{% call func .foo$bar .bar$$baz..foo %}
+	{% block baz %}
 		doof bood
-		{% range call foob .bar %}
+		{% range .bar %}
 			ding dong
 		{% end range %}
-		{% with call foob .bar %}
+		{% with .bar %}
 			{% block butt %}
 				dar fangle {% if .foo %}doo{% else %}no doo{% end if %}
 			{% end block %}
 		{% end with %}
 	{% end block %}
-	{% if "foo" %}
+	{% evoke baz %}
+	{% if .foo %}
 		always!
-	{% end if %}{% if "foo" %}{% else %}doof{% end if %}
-	{% with 25 %}{% . %}{% end with %}
+	{% end if %}{% if .bar %}{% else %}doof{% end if %}
+	{% with .ff %}{% . %}{% end with %}
 	{% range . as _ val %}{% with .val %}{% . %}{% end with %}{% end range %}`)
 
 func BenchmarkParseSpeed(b *testing.B) {
@@ -31,15 +32,18 @@ func BenchmarkParseSpeed(b *testing.B) {
 	}
 }
 
-func TestExecuteListString(t *testing.T) {
-	l := executeList{
-		nil,
-		executeList{nil, nil, nil},
-		nil,
+func TestParseNestedBlocks(t *testing.T) {
+	const code = `{% block foo %} foo {% block bar %} bar {% end block %} foo {% end block %}`
+	_, err := parse(lex([]byte(code)))
+	if err == nil {
+		t.Errorf("Expected error parsing nested blocks.")
 	}
-	l.Push(nil)
-	if l.String() != "[list\n\tnil\n\t[list\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
-		t.Error("didn't nest right")
+}
+
+func TestParseRedefineBlock(t *testing.T) {
+	_, err := parse(lex([]byte(`{% block foo %}{% end block %}{% block foo %}{% end block %}`)))
+	if err == nil {
+		t.Errorf("Expected error redefining a block")
 	}
 }
 

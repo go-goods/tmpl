@@ -119,22 +119,25 @@ type executeBlockValue struct {
 	executer
 }
 
-/*****************************
- * Execute Block Description *
- *****************************/
+/*****************
+ * Execute Evoke *
+ *****************/
 
-type executeBlockDesc struct {
+type executeEvoke struct {
 	ident string
-	ctx   valueType
+	ctx   *selectorValue
 }
 
-func (e *executeBlockDesc) Execute(w io.Writer, c *context) (err error) {
+func (e *executeEvoke) Execute(w io.Writer, c *context) (err error) {
 	//ask the context for the most up to date executer
 	ex := c.GetBlock(e.ident)
+	if ex == nil {
+		return fmt.Errorf("No block by the name %s", e.ident)
+	}
 	return ex.Execute(w, c)
 }
 
-func (e *executeBlockDesc) String() string {
+func (e *executeEvoke) String() string {
 	return fmt.Sprintf("[block %s %v]", e.ident, e.ctx)
 }
 
@@ -143,7 +146,7 @@ func (e *executeBlockDesc) String() string {
  ****************/
 
 type executeWith struct {
-	ctx valueType
+	ctx *selectorValue
 	ex  executer
 }
 
@@ -160,7 +163,7 @@ func (e *executeWith) String() string {
  *****************/
 
 type executeRange struct {
-	iter     valueType
+	iter     *selectorValue
 	ex       executer
 	key, val token
 }

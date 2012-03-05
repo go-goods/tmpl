@@ -2,8 +2,21 @@ package tmpl
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
+
+func TestExecuteListString(t *testing.T) {
+	l := executeList{
+		nil,
+		executeList{nil, nil, nil},
+		nil,
+	}
+	l.Push(nil)
+	if l.String() != "[list\n\tnil\n\t[list\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
+		t.Error("didn't nest right")
+	}
+}
 
 func TestExecuteNoContext(t *testing.T) {
 	cases := []struct {
@@ -11,12 +24,8 @@ func TestExecuteNoContext(t *testing.T) {
 		expect string
 	}{
 		{`this is just a literal`, `this is just a literal`},
-		{`{% if 1 %}test{% end if %}`, `test`},
-		{`{% if 1 %}test{% else %}fail{% end if %}`, `test`},
-		{`{% block foo %}test{% end block %}`, `test`},
+		{`{% block foo %}test{% end block %}{% evoke foo %}`, `test`},
 		{`t{%%}e{%%}s{%%}t{%%}`, `test`},
-		{`{% if 0 %}fail{% else %}test{% end if %}`, `test`},
-		{`{% if 0 %}fail{% end if %}`, ``},
 	}
 	for _, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
@@ -30,6 +39,17 @@ func TestExecuteNoContext(t *testing.T) {
 		if g := buf.String(); g != c.expect {
 			t.Fatalf("\nGot %q\nExp %q", g, c.expect)
 		}
+	}
+}
+
+func TestExecuteEvokeNoBlock(t *testing.T) {
+	tree, err := parse(lex([]byte(`{% evoke foo %}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tree.Execute(ioutil.Discard, nil); err == nil {
+		t.Fatal("Expected error evoking a block with no definition")
 	}
 }
 

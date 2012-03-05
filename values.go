@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 )
 
@@ -66,6 +65,16 @@ func consumeValue(p *parser) (valueType, error) {
 	return nil, nil
 }
 
+func consumeSelector(p *parser) (*selectorValue, error) {
+	toks := p.acceptUntil(tokenEndSel)
+	_ = toks
+	//consume the end sel
+	if p.next().typ != tokenEndSel {
+		return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
+	}
+	return &selectorValue{0, false, nil}, nil
+}
+
 func consumeCallValue(p *parser) (valueType, error) {
 	//grab the name identifier
 	name := p.next()
@@ -89,12 +98,7 @@ func consumeCallValue(p *parser) (valueType, error) {
 func consumeBasicValue(p *parser) (valueType, error) {
 	switch tok := p.next(); tok.typ {
 	case tokenStartSel:
-		toks := p.acceptUntil(tokenEndSel)
-		//consume the end sel
-		if p.next().typ != tokenEndSel {
-			return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
-		}
-		return createSelector(toks)
+		return consumeSelector(p)
 	case tokenValue:
 		return constantValue(tok.dat), nil
 	case tokenNumeric:
@@ -103,22 +107,6 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		return nil, fmt.Errorf("Expected a value type got got a %q", tok)
 	}
 	return nil, nil
-}
-
-func createSelector(toks []token) (valueType, error) {
-	if len(toks) == 0 {
-		return nil, fmt.Errorf("Invalid selector. No tokens!")
-	}
-	//at this point we have some sort of complex selector type so lets parse it
-	return nil, nil
-}
-
-func normalize(toks []token) (pops int, path []string, err error) {
-	return
-}
-
-func walkPath(r reflect.Value, path []string) (reflect.Value, error) {
-	return r, nil
 }
 
 // ******************
@@ -132,11 +120,7 @@ type selectorValue struct {
 }
 
 func (s selectorValue) Value(c *context) (interface{}, error) {
-	r, err := c.ContextAt(s.pops)
-	if err != nil {
-		return nil, err
-	}
-	return walkPath(r, s.path)
+	return nil, nil
 }
 
 func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
