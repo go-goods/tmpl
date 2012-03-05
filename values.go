@@ -111,8 +111,21 @@ func consumeSelector(p *parser) (val *selectorValue, err error) {
 		return
 	}
 
-	//consume pairs of [tokenPush tokenIdent] appending them to our path and
-	//break on the tokenEndSel
+	//consume a push selector
+	if tok := p.next(); tok.typ != tokenPush {
+		return nil, fmt.Errorf("Unexpected %q. Expected a %q", tok, tokenPush)
+	}
+
+	//check the first special case of an empty push
+	switch next := p.next(); next.typ {
+	case tokenEndSel:
+		return
+	case tokenIdent:
+		//we got a pair so thats part of our path
+		val.path = append(val.path, string(next.dat))
+	default:
+		return nil, fmt.Errorf("Unexpected %q. Expected a %q or %q.", next, tokenEndSel, tokenIdent)
+	}
 
 	for {
 		switch tok := p.next(); tok.typ {
@@ -138,17 +151,8 @@ func consumeSelectorHeader(p *parser) (val *selectorValue, err error) {
 	case tokenRoot:
 		return &selectorValue{0, true, nil}, nil
 	case tokenPush:
-		//peek at the next token to see what to do next
-		switch next := p.next(); next.typ {
-		case tokenEndSel:
-			p.backup()
-			return &selectorValue{}, nil
-		case tokenIdent:
-			//we got a pair so thats part of our path
-			return &selectorValue{0, false, []string{string(next.dat)}}, nil
-		default:
-			return nil, fmt.Errorf("Unexpected %q. Expected a %q or %q.", next, tokenEndSel, tokenIdent)
-		}
+		p.backup()
+		return &selectorValue{}, nil
 	case tokenPop:
 		var pops int
 		for pops = 1; p.next().typ == tokenPop; pops++ {

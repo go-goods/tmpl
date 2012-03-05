@@ -29,3 +29,25 @@ func TestValueParseSelector(t *testing.T) {
 		}
 	}
 }
+
+func TestValueBadSelectors(t *testing.T) {
+	cases := []struct {
+		name string
+		tmpl string
+	}{
+		{`pop inside`, `{% .foo$.bar %}`},
+		{`root inside`, `{% .foo/.bar %}`},
+		{`double push`, `{% .foo..bar %}`},
+		{`pop after root`, `{% /$.foo %}`},
+		{`root after pop`, `{% $/.foo %}`},
+		{`empty root`, `{% / %}`},
+		{`empty pop`, `{% $ %}`},
+	}
+
+	for _, c := range cases {
+		_, err := parse(lex([]byte(c.tmpl)))
+		if err == nil {
+			t.Errorf("%s: no error", c.name)
+		}
+	}
+}
