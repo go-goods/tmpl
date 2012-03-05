@@ -130,7 +130,7 @@ type executeEvoke struct {
 
 func (e *executeEvoke) Execute(w io.Writer, c *context) (err error) {
 	//ask the context for the most up to date executer
-	ex := c.GetBlock(e.ident)
+	ex := c.getBlock(e.ident)
 	if ex == nil {
 		return fmt.Errorf("No block by the name %s", e.ident)
 	}

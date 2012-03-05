@@ -25,8 +25,6 @@ func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
 	if p.base == nil {
 		return nil
 	}
-	p.context.Push(ctx)
-	defer p.context.Pop()
 	return p.base.Execute(w, p.context)
 }
 

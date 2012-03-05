@@ -7,14 +7,43 @@ import (
 	"strings"
 )
 
+type pathItem struct {
+	val  reflect.Value
+	name string
+}
+
+type path []pathItem
+
+func (p path) AbsPath() string {
+	var buf bytes.Buffer
+	fmt.Fprint(&buf, "/")
+	for _, it := range p {
+		fmt.Fprintf(&buf, ".%s", it.name)
+	}
+	return buf.String()
+}
+
+func (p path) ItemBehind(num int) (i pathItem, err error) {
+	if num < 0 || num >= len(p) {
+		err = fmt.Errorf("%q can't pop %d items off", p.AbsPath(), num)
+		return
+	}
+	i = p[len(p)-(num+1)]
+	return
+}
+
+func (p path) LastValue() reflect.Value {
+	return p[len(p)-1].val
+}
+
 type context struct {
-	stack  []reflect.Value
+	stack  path
 	blocks map[string]executer
 }
 
 func newContext() *context {
 	return &context{
-		stack:  []reflect.Value{},
+		stack:  path{},
 		blocks: map[string]executer{},
 	}
 }
@@ -32,26 +61,41 @@ func (c *context) String() string {
 	return buf.String()
 }
 
-func (c *context) GetBlock(name string) executer {
+func (c *context) getBlock(name string) executer {
 	return c.blocks[name]
 }
 
-func (c *context) Push(val interface{}) {
-	//push the value on to the stack and update the value pointer
-	c.stack = append(c.stack, reflect.ValueOf(val))
+func (c *context) restore(p path) {
+	c.stack = p
 }
 
-func (c *context) ContextAt(pops int) (reflect.Value, error) {
-	if pops < 0 {
-		return reflect.Value{}, fmt.Errorf("negative number of pops")
+func (c *context) access(key interface{}) (v reflect.Value, err error) {
+	//just go hog wild
+	defer func() {
+		if e := recover(); e != nil {
+			v = reflect.Value{}
+			err = fmt.Errorf("%q.%q: %q", c.stack.AbsPath(), key, e)
+		}
+		v = reflect.Indirect(v)
+	}()
+
+	val := c.stack.LastValue()
+	switch val.Kind() {
+	case reflect.Map:
+		v = val.MapIndex(reflect.ValueOf(key))
+	case reflect.Struct:
+		if skey, ok := key.(string); !ok {
+			err = fmt.Errorf("%q.%q: can't access nonstring key on a struct", c.stack.AbsPath(), key)
+		} else {
+			v = val.FieldByName(skey)
+		}
+	default:
+		err = fmt.Errorf("%q.%q: cant indirect into %q", c.stack.AbsPath(), key, val.Kind())
 	}
-	if pops >= len(c.stack) {
-		return reflect.Value{}, fmt.Errorf("too many pops")
-	}
-	return c.stack[len(c.stack)-(pops+1)], nil
+
+	return
 }
 
-func (c *context) Pop() {
-	//slice off the last value
-	c.stack = c.stack[:len(c.stack)-1]
+func (c *context) valueAt(s *selectorValue) (interface{}, error) {
+	return nil, nil
 }
