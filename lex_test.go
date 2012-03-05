@@ -12,8 +12,12 @@ func TestLexEspected(t *testing.T) {
 		{`numeric`, `{% with 25 %}`, []tokenType{tokenOpen, tokenWith, tokenNumeric, tokenClose, tokenEOF}},
 		{`variable`, `{% with ^foo %}`, []tokenType{tokenOpen, tokenWith, tokenStartSel, tokenVar, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
 		{`comment`, `{# with ^foo #}`, []tokenType{tokenComment, tokenEOF}},
+		{`comment_suffocate`, `{#No spaces#}`, []tokenType{tokenComment, tokenEOF}},
+		{`comment_nl`, `{# My comment spans
+			two lines #}`, []tokenType{tokenComment, tokenEOF}},
 		{`as`, `{% range . as _ val %}`, []tokenType{tokenOpen, tokenRange, tokenStartSel, tokenPush, tokenEndSel, tokenAs, tokenIdent, tokenIdent, tokenClose, tokenEOF}},
 		{`set`, `{% set foo .barf %}`, []tokenType{tokenOpen, tokenSet, tokenIdent, tokenStartSel, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
+		{`if`, `{% if .foo %}`, []tokenType{tokenOpen, tokenIf, tokenStartSel, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
 	}
 
 	for _, c := range cases {
