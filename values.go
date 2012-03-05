@@ -94,7 +94,7 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		if p.next().typ != tokenEndSel {
 			return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
 		}
-		return createSelector(toks), nil
+		return createSelector(toks)
 	case tokenValue:
 		return constantValue(tok.dat), nil
 	case tokenNumeric:
@@ -105,8 +105,16 @@ func consumeBasicValue(p *parser) (valueType, error) {
 	return nil, nil
 }
 
-func createSelector(toks []token) valueType {
-	return nil
+func createSelector(toks []token) (valueType, error) {
+	if len(toks) == 0 {
+		return nil, fmt.Errorf("Invalid selector. No tokens!")
+	}
+	//at this point we have some sort of complex selector type so lets parse it
+	return nil, nil
+}
+
+func normalize(toks []token) (pops int, path []string, err error) {
+	return
 }
 
 func walkPath(r reflect.Value, path []string) (reflect.Value, error) {
@@ -119,6 +127,7 @@ func walkPath(r reflect.Value, path []string) (reflect.Value, error) {
 
 type selectorValue struct {
 	pops int
+	abs  bool
 	path []string
 }
 
@@ -145,40 +154,6 @@ func (s selectorValue) String() string {
 	for _, tok := range s.path {
 		fmt.Fprintf(&buf, " %s", tok)
 	}
-	fmt.Fprint(&buf, "]")
-	return buf.String()
-}
-
-// ******************
-// * Variable value *
-// ******************
-
-type variableValue struct {
-	name string
-	path []string
-}
-
-func (v variableValue) Value(c *context) (interface{}, error) {
-	val := c.Get(v.name)
-	if len(v.path) == 0 {
-		return val, nil
-	}
-	r, err := walkPath(reflect.ValueOf(val), v.path)
-	return r.Interface(), err
-}
-
-func (v variableValue) Execute(w io.Writer, c *context) (err error) {
-	val, err := v.Value(c)
-	if err != nil {
-		return
-	}
-	_, err = fmt.Fprint(w, val)
-	return
-}
-
-func (v variableValue) String() string {
-	var buf bytes.Buffer
-	fmt.Fprint(&buf, "[variable")
 	fmt.Fprint(&buf, "]")
 	return buf.String()
 }

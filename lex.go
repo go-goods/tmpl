@@ -19,7 +19,7 @@ const (
 	tokenCall                      // call
 	tokenPush                      // .
 	tokenPop                       // $
-	tokenVar                       // ^
+	tokenRoot                      // /
 	tokenValue                     // "foo"
 	tokenNumeric                   // -123.5
 	tokenIdent                     // foo (push/pop idents)
@@ -27,7 +27,6 @@ const (
 	tokenBlock                     // block
 	tokenIf                        // if
 	tokenElse                      // else
-	tokenSet                       // set
 	tokenWith                      // with
 	tokenRange                     // range
 	tokenEnd                       // end
@@ -48,9 +47,9 @@ var (
 )
 
 var tokenNames = []string{
-	"open", "close", "call", "push", "pop", "var", "value", "numeric", "ident",
-	"as", "block", "if", "else", "set", "with", "range", "end", "comment",
-	"literal", "eof", "startSel", "endSel", "error",
+	"open", "close", "call", "push", "pop", "root", "value", "numeric", "ident",
+	"as", "block", "if", "else", "with", "range", "end", "comment", "literal",
+	"eof", "startSel", "endSel", "error",
 }
 
 func (t tokenType) String() string {
@@ -80,19 +79,18 @@ var (
 	closeDelim = delim{[]byte(`%}`), tokenClose}
 	pushDelim  = delim{[]byte(`.`), tokenPush}
 	popDelim   = delim{[]byte(`$`), tokenPop}
-	varDelim   = delim{[]byte(`^`), tokenVar}
+	rootDelim  = delim{[]byte(`/`), tokenRoot}
 	callDelim  = delim{[]byte(`call`), tokenCall}
 	blockDelim = delim{[]byte(`block`), tokenBlock}
 	ifDelim    = delim{[]byte(`if`), tokenIf}
 	elseDelim  = delim{[]byte(`else`), tokenElse}
 	withDelim  = delim{[]byte(`with`), tokenWith}
 	rangeDelim = delim{[]byte(`range`), tokenRange}
-	setDelim   = delim{[]byte(`set`), tokenSet}
 	asDelim    = delim{[]byte(`as`), tokenAs}
 	endDelim   = delim{[]byte(`end`), tokenEnd}
 
-	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, setDelim, endDelim, asDelim}
-	selDelims    = []delim{pushDelim, popDelim, varDelim}
+	insideDelims = []delim{callDelim, blockDelim, ifDelim, elseDelim, withDelim, rangeDelim, endDelim, asDelim}
+	selDelims    = []delim{pushDelim, popDelim, rootDelim}
 )
 
 type token struct {
@@ -281,12 +279,6 @@ func lexPopDelim(l *lexer) lexerState {
 	return lexInsideSel
 }
 
-func lexVarDelim(l *lexer) lexerState {
-	l.pos += len(varDelim.value)
-	l.emit(varDelim.typ)
-	return lexInsideSel
-}
-
 func lexInsideDelims(l *lexer) lexerState {
 	for {
 		rest := l.data[l.pos:]
@@ -351,9 +343,6 @@ func lexInsideSel(l *lexer) lexerState {
 		}
 		if bytes.HasPrefix(rest, popDelim.value) {
 			return lexPopDelim
-		}
-		if bytes.HasPrefix(rest, varDelim.value) {
-			return lexVarDelim
 		}
 		switch r := l.next(); {
 		case unicode.IsLetter(r) || r == '_': //go spec

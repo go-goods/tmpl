@@ -23,9 +23,7 @@ var code = []byte(`
 		always!
 	{% end if %}{% if "foo" %}{% else %}doof{% end if %}
 	{% with 25 %}{% . %}{% end with %}
-	{% range . as _ val %}{% with ^val %}{% . %}{% end with %}{% end range %}
-	{% ^foo %}
-	{% set foo .foo %}{% ^foo %}`)
+	{% range . as _ val %}{% with .val %}{% . %}{% end with %}{% end range %}`)
 
 func BenchmarkParseSpeed(b *testing.B) {
 	for i := 0; i < b.N; i++ {

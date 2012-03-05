@@ -155,29 +155,6 @@ func (e *executeWith) String() string {
 	return fmt.Sprintf("[with %s] %s", e.ctx, e.ex)
 }
 
-/***************
- * Execute Set *
- ***************/
-
-type executeSet struct {
-	key token
-	val valueType
-}
-
-func (e *executeSet) Execute(w io.Writer, c *context) (err error) {
-	//set the context key to the value
-	v, err := e.val.Value(c)
-	if err != nil {
-		return
-	}
-	c.Set(string(e.key.dat), v)
-	return nil
-}
-
-func (e *executeSet) String() string {
-	return fmt.Sprintf("[set %s] %s", e.key, e.val)
-}
-
 /*****************
  * Execute Range *
  *****************/
