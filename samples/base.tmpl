@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+{% range .Meta.Stylesheets as _ s %}
+	{% evoke head_stylesheet ^s.path ^s.media}
+{% end range %}
+</head>
+<body>
+</body>
+</html>
