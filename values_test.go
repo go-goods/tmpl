@@ -14,6 +14,8 @@ func TestValueParseSelector(t *testing.T) {
 		{`basic`, `{% .foo.bar %}`, &selectorValue{0, false, []string{"foo", "bar"}}},
 		{`rooted`, `{% /.foo.bar %}`, &selectorValue{0, true, []string{"foo", "bar"}}},
 		{`relative`, `{% $$.foo.bar %}`, &selectorValue{2, false, []string{"foo", "bar"}}},
+		{`previous`, `{% $. %}`, &selectorValue{1, false, nil}},
+		{`top`, `{% /. %}`, &selectorValue{0, true, nil}},
 		{`empty`, `{% . %}`, &selectorValue{0, false, nil}},
 	}
 
