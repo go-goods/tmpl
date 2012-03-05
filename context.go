@@ -44,10 +44,13 @@ func (c *context) Push(val interface{}) {
 }
 
 func (c *context) ContextAt(pops int) (reflect.Value, error) {
-	if pops > len(c.stack) {
+	if pops < 0 {
+		return reflect.Value{}, fmt.Errorf("negative number of pops")
+	}
+	if pops >= len(c.stack) {
 		return reflect.Value{}, fmt.Errorf("too many pops")
 	}
-	return c.stack[len(c.stack)-pops], nil
+	return c.stack[len(c.stack)-(pops+1)], nil
 }
 
 func (c *context) Pop() {
