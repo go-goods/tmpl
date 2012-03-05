@@ -9,7 +9,6 @@ func TestLexEspected(t *testing.T) {
 		ex   []tokenType
 	}{
 		{`pop`, `{% $foo %}`, []tokenType{tokenOpen, tokenStartSel, tokenPop, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
-		{`numeric`, `{% with 25 %}`, []tokenType{tokenOpen, tokenWith, tokenNumeric, tokenClose, tokenEOF}},
 		{`comment`, `{# with .foo #}`, []tokenType{tokenComment, tokenEOF}},
 		{`comment_suffocate`, `{#No spaces#}`, []tokenType{tokenComment, tokenEOF}},
 		{`comment_nl`, `{# My comment spans

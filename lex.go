@@ -311,12 +311,15 @@ func lexInsideDelims(l *lexer) lexerState {
 			return l.errorf("unclosed action")
 		case unicode.IsSpace(r):
 			l.advance()
-		case r == '+' || r == '-' || '0' <= r && r <= '9':
-			l.backup()
-			return lexNumber
-		case r == '"':
-			l.advance()
-			return lexValue
+		//remove letter/number literals
+		/*
+			case r == '+' || r == '-' || '0' <= r && r <= '9':
+				l.backup()
+				return lexNumber
+			case r == '"':
+				l.advance()
+				return lexValue
+		*/
 		case unicode.IsLetter(r) || r == '_': //go spec
 			return lexIdentifier
 		default:
