@@ -14,10 +14,11 @@ var code = []byte(`
 			ding dong
 		{% end range %}
 		{% with .bar %}
-			{% block butt %}
-				dar fangle {% if .foo %}doo{% else %}no doo{% end if %}
-			{% end block %}
+			{% evoke butt %}
 		{% end with %}
+	{% end block %}
+	{% block butt %}
+		dar fangle {% if .foo %}doo{% else %}no doo{% end if %}
 	{% end block %}
 	{% evoke baz %}
 	{% if .foo %}
@@ -33,11 +34,15 @@ func BenchmarkParseSpeed(b *testing.B) {
 }
 
 func TestParseNestedBlocks(t *testing.T) {
-	const code = `{% block foo %} foo {% block bar %} bar {% end block %} foo {% end block %}`
-	_, err := parse(lex([]byte(code)))
+	_, err := parse(lex([]byte(`{% block foo %} foo {% block bar %} bar {% end block %} foo {% end block %}`)))
 	if err == nil {
 		t.Errorf("Expected error parsing nested blocks.")
 	}
+	_, err = parse(lex([]byte(`{%block foo%}{%with .%}{%block bar%}{%end block%}{%end with%}{%end block%}`)))
+	if err == nil {
+		t.Errorf("Expected error parsing nested blocks.")
+	}
+
 }
 
 func TestParseRedefineBlock(t *testing.T) {

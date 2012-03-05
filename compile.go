@@ -45,7 +45,8 @@ type parser struct {
 	end tokenType     //for subparse to check for the correct end type
 
 	//block channel
-	blocks chan *executeBlockValue
+	blocks  chan *executeBlockValue
+	inBlock bool
 
 	//token state types
 	curr   token //currently read token
@@ -166,11 +167,12 @@ func (p *parser) acceptUntil(tok tokenType) (t []token) {
 
 func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	p := &parser{
-		in:     parp.in,
-		out:    make(chan executer),
-		end:    end,
-		errd:   tokenNone,
-		blocks: parp.blocks,
+		in:      parp.in,
+		out:     make(chan executer),
+		end:     end,
+		errd:    tokenNone,
+		inBlock: parp.inBlock || end == tokenBlock,
+		blocks:  parp.blocks,
 	}
 	//run the parser
 	go p.run()
@@ -227,8 +229,8 @@ func parseOpen(p *parser) parseState {
 	//advanced calls to start a sub parser
 	case tok.typ == tokenBlock:
 		//check for a sub parse
-		if p.end == tokenBlock {
-			return p.errorf("Can't put a block definition inside of a block defintion. %v", tok)
+		if p.inBlock {
+			return p.errorf("%d:%d: nested blocks", tok.line, tok.pos)
 		}
 		return parseBlock
 	case tok.typ == tokenWith:
