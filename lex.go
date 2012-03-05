@@ -342,12 +342,12 @@ func lexComment(l *lexer) lexerState {
 
 func lexInsideSel(l *lexer) lexerState {
 	for {
-		rest := l.data[l.pos:]
-		if bytes.HasPrefix(rest, pushDelim.value) {
-			return lexPushDelim
-		}
-		if bytes.HasPrefix(rest, popDelim.value) {
-			return lexPopDelim
+		for _, delim := range selDelims {
+			if bytes.HasPrefix(l.data[l.pos:], delim.value) {
+				l.pos += len(delim.value)
+				l.emit(delim.typ)
+				return lexInsideSel
+			}
 		}
 		switch r := l.next(); {
 		case unicode.IsLetter(r) || r == '_': //go spec

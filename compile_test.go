@@ -7,7 +7,7 @@ import (
 
 var code = []byte(`
 	literal
-	{% call func .foo$bar .bar$$baz..foo %}
+	{% call func .foo.bar $$.bar.baz.foo /.foo.bar %}
 	{% block baz %}
 		doof bood
 		{% range .bar %}

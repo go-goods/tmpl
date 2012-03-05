@@ -13,6 +13,12 @@ func TestLexEspected(t *testing.T) {
 		{`comment_suffocate`, `{#No spaces#}`, []tokenType{tokenComment, tokenEOF}},
 		{`comment_nl`, `{# My comment spans
 			two lines #}`, []tokenType{tokenComment, tokenEOF}},
+		{`complicated selectors`, `{% call func .foo.bar $$.bar.baz.foo /.foo.bar %}`,
+			[]tokenType{tokenOpen, tokenCall, tokenIdent, tokenStartSel, tokenPush, tokenIdent,
+				tokenPush, tokenIdent, tokenEndSel, tokenStartSel, tokenPop, tokenPop, tokenPush,
+				tokenIdent, tokenPush, tokenIdent, tokenPush, tokenIdent, tokenEndSel, tokenStartSel,
+				tokenRoot, tokenPush, tokenIdent, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF},
+		},
 		{`as`, `{% range . as _ val %}`, []tokenType{tokenOpen, tokenRange, tokenStartSel, tokenPush, tokenEndSel, tokenAs, tokenIdent, tokenIdent, tokenClose, tokenEOF}},
 		{`if`, `{% if .foo %}`, []tokenType{tokenOpen, tokenIf, tokenStartSel, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
 	}

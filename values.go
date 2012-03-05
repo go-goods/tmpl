@@ -65,16 +65,6 @@ func consumeValue(p *parser) (valueType, error) {
 	return nil, nil
 }
 
-func consumeSelector(p *parser) (*selectorValue, error) {
-	toks := p.acceptUntil(tokenEndSel)
-	_ = toks
-	//consume the end sel
-	if p.next().typ != tokenEndSel {
-		return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
-	}
-	return &selectorValue{0, false, nil}, nil
-}
-
 func consumeCallValue(p *parser) (valueType, error) {
 	//grab the name identifier
 	name := p.next()
@@ -98,6 +88,7 @@ func consumeCallValue(p *parser) (valueType, error) {
 func consumeBasicValue(p *parser) (valueType, error) {
 	switch tok := p.next(); tok.typ {
 	case tokenStartSel:
+		p.backup()
 		return consumeSelector(p)
 	case tokenValue:
 		return constantValue(tok.dat), nil
@@ -107,6 +98,68 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		return nil, fmt.Errorf("Expected a value type got got a %q", tok)
 	}
 	return nil, nil
+}
+
+func consumeSelector(p *parser) (val *selectorValue, err error) {
+	if tok := p.next(); tok.typ != tokenStartSel {
+		return nil, fmt.Errorf("Expected a %q got a %q", tokenStartSel, tok)
+	}
+
+	//at this point the tokenStartSel should be consumed
+	val, err = consumeSelectorHeader(p)
+	if err != nil {
+		return
+	}
+
+	//consume pairs of [tokenPush tokenIdent] appending them to our path and
+	//break on the tokenEndSel
+
+	for {
+		switch tok := p.next(); tok.typ {
+		case tokenEndSel:
+			return
+		case tokenPush:
+		default:
+			return nil, fmt.Errorf("Expected a %q, got a %q", tokenPush, tok)
+		}
+
+		tok := p.next()
+		if tok.typ != tokenIdent {
+			return nil, fmt.Errorf("Expected a %q, got a %q", tokenIdent, tok)
+		}
+		val.path = append(val.path, string(tok.dat))
+	}
+
+	panic("unreachable")
+}
+
+func consumeSelectorHeader(p *parser) (val *selectorValue, err error) {
+	switch tok := p.next(); tok.typ {
+	case tokenRoot:
+		return &selectorValue{0, true, nil}, nil
+	case tokenPush:
+		//peek at the next token to see what to do next
+		switch next := p.next(); next.typ {
+		case tokenEndSel:
+			p.backup()
+			return &selectorValue{}, nil
+		case tokenIdent:
+			//we got a pair so thats part of our path
+			return &selectorValue{0, false, []string{string(next.dat)}}, nil
+		default:
+			return nil, fmt.Errorf("Unexpected %q. Expected a %q or %q.", next, tokenEndSel, tokenIdent)
+		}
+	case tokenPop:
+		var pops int
+		for pops = 1; p.next().typ == tokenPop; pops++ {
+		}
+		p.backup()
+		return &selectorValue{pops, false, nil}, nil
+	default:
+		return nil, fmt.Errorf("Unexpected %q. Expected a %q, %q, or %q", tok, tokenRoot, tokenPush, tokenPop)
+	}
+
+	panic("unreachable")
 }
 
 // ******************
