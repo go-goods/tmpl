@@ -65,26 +65,6 @@ func consumeValue(p *parser) (valueType, error) {
 	return nil, nil
 }
 
-func consumeCallValue(p *parser) (valueType, error) {
-	//grab the name identifier
-	name := p.next()
-	if name.typ != tokenIdent {
-		return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
-	}
-	//grab values until p.peek() is a tokenClose
-	values := []valueType{}
-	for p.peek().typ != tokenClose {
-		//consume a basic value
-		val, err := consumeBasicValue(p)
-		if err != nil {
-			return nil, err
-		}
-		//append it
-		values = append(values, val)
-	}
-	return callValue{name.dat, values}, nil
-}
-
 func consumeBasicValue(p *parser) (valueType, error) {
 	switch tok := p.next(); tok.typ {
 	case tokenStartSel:
@@ -98,6 +78,39 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		return nil, fmt.Errorf("Expected a value type got got a %q", tok)
 	}
 	return nil, nil
+}
+
+// ******************
+// * Selector Value *
+// ******************
+
+type selectorValue struct {
+	pops int
+	abs  bool
+	path []string
+}
+
+func (s selectorValue) Value(c *context) (interface{}, error) {
+	return nil, nil
+}
+
+func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
+	v, err := s.Value(c)
+	if err != nil {
+		return
+	}
+	_, err = fmt.Fprint(w, v)
+	return
+}
+
+func (s selectorValue) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "[selector $%d", s.pops)
+	for _, tok := range s.path {
+		fmt.Fprintf(&buf, " %s", tok)
+	}
+	fmt.Fprint(&buf, "]")
+	return buf.String()
 }
 
 func consumeSelector(p *parser) (val *selectorValue, err error) {
@@ -166,39 +179,6 @@ func consumeSelectorHeader(p *parser) (val *selectorValue, err error) {
 	panic("unreachable")
 }
 
-// ******************
-// * Selector Value *
-// ******************
-
-type selectorValue struct {
-	pops int
-	abs  bool
-	path []string
-}
-
-func (s selectorValue) Value(c *context) (interface{}, error) {
-	return nil, nil
-}
-
-func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
-	v, err := s.Value(c)
-	if err != nil {
-		return
-	}
-	_, err = fmt.Fprint(w, v)
-	return
-}
-
-func (s selectorValue) String() string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "[selector $%d", s.pops)
-	for _, tok := range s.path {
-		fmt.Fprintf(&buf, " %s", tok)
-	}
-	fmt.Fprint(&buf, "]")
-	return buf.String()
-}
-
 // **************
 // * Call Value *
 // **************
@@ -229,6 +209,26 @@ func (s callValue) String() string {
 	}
 	fmt.Fprint(&buf, "]")
 	return buf.String()
+}
+
+func consumeCallValue(p *parser) (valueType, error) {
+	//grab the name identifier
+	name := p.next()
+	if name.typ != tokenIdent {
+		return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
+	}
+	//grab values until p.peek() is a tokenClose
+	values := []valueType{}
+	for p.peek().typ != tokenClose {
+		//consume a basic value
+		val, err := consumeBasicValue(p)
+		if err != nil {
+			return nil, err
+		}
+		//append it
+		values = append(values, val)
+	}
+	return callValue{name.dat, values}, nil
 }
 
 // ************************
