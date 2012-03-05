@@ -93,7 +93,7 @@ func consumeBasicValue(p *parser) (valueType, error) {
 		if p.next().typ != tokenEndSel {
 			return nil, fmt.Errorf("Expected a %q got a %q", tokenEndSel, p.curr)
 		}
-		return selectorValue(toks), nil
+		return createSelector(toks), nil
 	case tokenValue:
 		return constantValue(tok.dat), nil
 	case tokenNumeric:
@@ -127,6 +127,10 @@ func (s selectorValue) String() string {
 	}
 	fmt.Fprint(&buf, "]")
 	return buf.String()
+}
+
+func createSelector(toks []token) selectorValue {
+	return selectorValue(toks)
 }
 
 // **************

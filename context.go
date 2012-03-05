@@ -3,18 +3,19 @@ package tmpl
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
 type context struct {
-	stack  []interface{}
+	stack  []reflect.Value
 	blocks map[string]executer
 	vars   map[string]interface{}
 }
 
 func newContext() *context {
 	return &context{
-		stack:  []interface{}{},
+		stack:  []reflect.Value{},
 		blocks: map[string]executer{},
 		vars:   map[string]interface{}{},
 	}
@@ -39,12 +40,7 @@ func (c *context) GetBlock(name string) executer {
 
 func (c *context) Push(val interface{}) {
 	//push the value on to the stack and update the value pointer
-	c.stack = append(c.stack, val)
-}
-
-//grabs the current value from the stack
-func (c *context) Current() interface{} {
-	return c.stack[len(c.stack)-1]
+	c.stack = append(c.stack, reflect.ValueOf(val))
 }
 
 func (c *context) Pop() {
