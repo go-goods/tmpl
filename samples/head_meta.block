@@ -1,0 +1,62 @@
+{#
+Common elements maintained by a Meta instance for the <head></head> section of
+an HTML document.
+
+@param Meta
+#}
+{% block head_meta %}
+	<meta charset="UTF-8">
+	<title>
+		{% if .PageTitle != "" %}
+			{% .PageTitle %} -
+		{% end if %}
+		{% .DefaultTitle %}
+	</title>
+	{% if .Keywords != "" %}
+		<meta name="keywords" content="{% .Keywords %}">
+	{% end if %}
+	{% if .Description != "" %}
+		<meta name="description" content="{% .Description %}">
+	{% end if %}
+	{% range .Stylesheets as _ s %}
+		<link rel="stylesheet" href="{% .s.URL %}" media="{% .s.Media %}">
+	{% end range %}
+	{% range .Javascripts as _ s %}
+		<script src="{% .s.URL %}"></script>
+	{% end range %}
+{% end block %}
+
+{#
+Given the following Meta instance:
+
+Meta{
+	PageTitle    "About Us"
+	DefaultTitle "MySite"
+	Keywords     "about, MySite"
+	Description  ""
+	Stylesheets {
+		"/css/base.css"{
+			URL   "/css/base.css"
+			Media "screen"
+		}
+	}
+	Javascripts [
+		{
+			"URL" "/js/jquery.js"
+		},
+		{
+			"URL" "/js/tracker.js"
+		}
+	]
+}
+
+The following is expected output:
+
+<meta charset="UTF-8">
+<title>About Us - MySite</title>
+<meta name="keywords" content="about, MySite">
+<link rel="stylesheet" href="/css/base.css" media="screen">
+<script src="/js/jquery.js"></script>
+<script src="/js/tracker.js"></script>
+
+#}

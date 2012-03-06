@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-{% range .Meta.Stylesheets as _ s %}
-	{% evoke head_stylesheet ^s.path ^s.media}
-{% end range %}
+{% evoke head_meta .Meta %}
 </head>
 <body>
 </body>
