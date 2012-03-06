@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -13,9 +14,11 @@ type executer interface {
 	Execute(io.Writer, *context) error
 }
 
-/****************
- * Execute List *
- ****************/
+// ****************
+// * Execute List *
+// ****************
+
+var whitespace = regexp.MustCompile(`^\s+$`)
 
 type executeList []executer
 
@@ -55,6 +58,8 @@ func (e *executeList) compact() {
 	e.substituteTrueIf()
 	//take runs of constant expressions and simply them
 	e.combineConstant()
+	//drops any constants that are entirely whitespace
+	e.dropWhitespace()
 }
 
 func (e *executeList) substituteTrueIf() {
@@ -110,18 +115,34 @@ func (e *executeList) combineConstant() {
 	return
 }
 
-/***********************
- * Execute Block Value *
- ***********************/
+func (e *executeList) dropWhitespace() {
+	//make a secondary list to copy in non whitespace
+	cl := make(executeList, 0, len(*e))
+	for _, ex := range *e {
+		//if its a whitespace constant value, skip it
+		if co, ok := ex.(constantValue); ok && whitespace.Match([]byte(co)) {
+			continue
+		}
+		//otherwise add it to our little list
+		cl = append(cl, ex)
+	}
+	//set the value to our new list
+	*e = cl
+	return
+}
+
+// ***********************
+// * Execute Block Value *
+// ***********************
 
 type executeBlockValue struct {
 	ident string
 	executer
 }
 
-/*****************
- * Execute Evoke *
- *****************/
+// *****************
+// * Execute Evoke *
+// *****************
 
 type executeEvoke struct {
 	ident string
@@ -141,9 +162,9 @@ func (e *executeEvoke) String() string {
 	return fmt.Sprintf("[block %s %v]", e.ident, e.ctx)
 }
 
-/****************
- * Execute With *
- ****************/
+// ****************
+// * Execute With *
+// ****************
 
 type executeWith struct {
 	ctx *selectorValue
@@ -158,9 +179,9 @@ func (e *executeWith) String() string {
 	return fmt.Sprintf("[with %s] %s", e.ctx, e.ex)
 }
 
-/*****************
- * Execute Range *
- *****************/
+// *****************
+// * Execute Range *
+// *****************
 
 type executeRange struct {
 	iter     *selectorValue
@@ -178,9 +199,9 @@ func (e *executeRange) String() string {
 	return fmt.Sprintf("[range %s] %s", e.iter, e.ex)
 }
 
-/**************
- * Execute If *
- **************/
+// **************
+// * Execute If *
+// **************
 
 type executeIf struct {
 	cond valueType

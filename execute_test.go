@@ -115,5 +115,25 @@ func TestExecuteListCombineConstant(t *testing.T) {
 	if g := string(e[2].(constantValue)); g != `foobarbaz` {
 		t.Errorf("Value incorrect. %q", g)
 	}
+}
 
+func TestExecuteListDropWhitespace(t *testing.T) {
+	e := executeList{
+		constantValue(`foo`),
+		constantValue(` `),
+		constantValue(`foo`),
+		constantValue(`	`),
+		constantValue(`foo`),
+		constantValue("\r\n"),
+		constantValue(`foo`),
+	}
+	e.dropWhitespace()
+	if len(e) != 4 {
+		t.Fatalf("Expected 4 got %d", len(e))
+	}
+	for i, cv := range e {
+		if o, ok := cv.(constantValue); !ok || string(o) != "foo" {
+			t.Errorf("%dth foo is %v", i, cv)
+		}
+	}
 }
