@@ -7,15 +7,15 @@ an HTML document.
 {% block head_meta %}
 	<meta charset="UTF-8">
 	<title>
-		{% if .PageTitle != "" %}
+		{% if .PageTitle %}
 			{% .PageTitle %} -
 		{% end if %}
 		{% .DefaultTitle %}
 	</title>
-	{% if .Keywords != "" %}
+	{% if .Keywords %}
 		<meta name="keywords" content="{% .Keywords %}">
 	{% end if %}
-	{% if .Description != "" %}
+	{% if .Description %}
 		<meta name="description" content="{% .Description %}">
 	{% end if %}
 	{% range .Stylesheets as _ s %}
