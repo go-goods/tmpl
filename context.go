@@ -13,10 +13,7 @@ func indirect(v reflect.Value) reflect.Value {
 			v = v.Elem()
 			continue
 		}
-		if v.Kind() != reflect.Ptr {
-			break
-		}
-		if v.IsNil() {
+		if v.Kind() != reflect.Ptr || v.IsNil() {
 			break
 		}
 		v = v.Elem()
