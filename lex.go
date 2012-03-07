@@ -350,6 +350,12 @@ func lexInsideSel(l *lexer) lexerState {
 				return lexInsideSel
 			}
 		}
+
+		if bytes.HasPrefix(l.data[l.pos:], closeDelim.value) {
+			l.emit(tokenEndSel)
+			return lexCloseDelim
+		}
+
 		switch r := l.next(); {
 		case unicode.IsLetter(r) || r == '_': //go spec
 			l.acceptRun(identifierLetters)

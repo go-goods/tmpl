@@ -23,6 +23,7 @@ func TestLexEspected(t *testing.T) {
 		{`if`, `{% if .foo %}`, []tokenType{tokenOpen, tokenIf, tokenStartSel, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
 		{`crazy comment`, `{#}#}`, []tokenType{tokenComment, tokenEOF}},
 		{`multi crazy`, `{#}foo{#}`, []tokenType{tokenComment, tokenEOF}},
+		{`selector suffocate`, `{%.%}`, []tokenType{tokenOpen, tokenStartSel, tokenPush, tokenEndSel, tokenClose, tokenEOF}},
 	}
 
 	for _, c := range cases {
