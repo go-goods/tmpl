@@ -10,8 +10,8 @@ func TestLexEspected(t *testing.T) {
 	}{
 		{`pop`, `{% $foo %}`, []tokenType{tokenOpen, tokenStartSel, tokenPop, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
 		{`comment`, `{# with .foo #}`, []tokenType{tokenComment, tokenEOF}},
-		{`comment_suffocate`, `{#No spaces#}`, []tokenType{tokenComment, tokenEOF}},
-		{`comment_nl`, `{# My comment spans
+		{`comment suffocate`, `{#No spaces#}`, []tokenType{tokenComment, tokenEOF}},
+		{`comment nl`, `{# My comment spans
 			two lines #}`, []tokenType{tokenComment, tokenEOF}},
 		{`complicated selectors`, `{% call func .foo.bar $$.bar.baz.foo /.foo.bar %}`,
 			[]tokenType{tokenOpen, tokenCall, tokenIdent, tokenStartSel, tokenPush, tokenIdent,
@@ -21,6 +21,8 @@ func TestLexEspected(t *testing.T) {
 		},
 		{`as`, `{% range . as _ val %}`, []tokenType{tokenOpen, tokenRange, tokenStartSel, tokenPush, tokenEndSel, tokenAs, tokenIdent, tokenIdent, tokenClose, tokenEOF}},
 		{`if`, `{% if .foo %}`, []tokenType{tokenOpen, tokenIf, tokenStartSel, tokenPush, tokenIdent, tokenEndSel, tokenClose, tokenEOF}},
+		{`crazy comment`, `{#}#}`, []tokenType{tokenComment, tokenEOF}},
+		{`multi crazy`, `{#}foo{#}`, []tokenType{tokenComment, tokenEOF}},
 	}
 
 	for _, c := range cases {

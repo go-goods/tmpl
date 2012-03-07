@@ -330,6 +330,7 @@ func lexInsideDelims(l *lexer) lexerState {
 }
 
 func lexComment(l *lexer) lexerState {
+	l.pos += len(commentOpen)
 	for !bytes.HasPrefix(l.data[l.pos:], commentClose) {
 		if l.next() == eof {
 			return l.errorf("unexpected eof in comment")
