@@ -13,6 +13,9 @@ func parseFile(file string) (tree *parseTree, err error) {
 		return
 	}
 	tree, err = parse(lex(data))
+	if err != nil {
+		return
+	}
 	tree.context.setFile(file)
 	return
 }
