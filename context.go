@@ -14,7 +14,7 @@ type pathItem struct {
 
 type path []pathItem
 
-func (p path) AbsPath() string {
+func (p path) String() string {
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, "/")
 	for _, it := range p {
@@ -23,16 +23,29 @@ func (p path) AbsPath() string {
 	return buf.String()
 }
 
-func (p path) ItemBehind(num int) (i pathItem, err error) {
+func (p path) itemBehind(num int) (i pathItem, err error) {
 	if num < 0 || num >= len(p) {
-		err = fmt.Errorf("%q can't pop %d items off", p.AbsPath(), num)
+		err = fmt.Errorf("%q can't pop %d items off", p, num)
 		return
 	}
 	i = p[len(p)-(num+1)]
 	return
 }
 
-func (p path) LastValue() reflect.Value {
+func (p *path) push(i pathItem) {
+	*p = append(*p, i)
+}
+
+func (p *path) pop(num int) (err error) {
+	if num < 0 || num >= len(*p) {
+		err = fmt.Errorf("%q cant pop %d items off", p, num)
+		return
+	}
+	*p = (*p)[:len(*p)-(num)]
+	return
+}
+
+func (p path) lastValue() reflect.Value {
 	return p[len(p)-1].val
 }
 
@@ -61,41 +74,32 @@ func (c *context) String() string {
 	return buf.String()
 }
 
+func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
+	return
+}
+
 func (c *context) getBlock(name string) executer {
 	return c.blocks[name]
 }
 
-func (c *context) restore(p path) {
-	c.stack = p
-}
-
-func (c *context) access(key interface{}) (v reflect.Value, err error) {
+func access(stack path, val reflect.Value, key string) (v reflect.Value, err error) {
 	//just go hog wild
 	defer func() {
 		if e := recover(); e != nil {
 			v = reflect.Value{}
-			err = fmt.Errorf("%q.%q: %q", c.stack.AbsPath(), key, e)
+			err = fmt.Errorf("%q.%q: %q", stack, key, e)
 		}
 		v = reflect.Indirect(v)
 	}()
 
-	val := c.stack.LastValue()
 	switch val.Kind() {
 	case reflect.Map:
 		v = val.MapIndex(reflect.ValueOf(key))
 	case reflect.Struct:
-		if skey, ok := key.(string); !ok {
-			err = fmt.Errorf("%q.%q: can't access nonstring key on a struct", c.stack.AbsPath(), key)
-		} else {
-			v = val.FieldByName(skey)
-		}
+		v = val.FieldByName(key)
 	default:
-		err = fmt.Errorf("%q.%q: cant indirect into %q", c.stack.AbsPath(), key, val.Kind())
+		err = fmt.Errorf("%q.%q: cant indirect into %q", stack, key, val.Kind())
 	}
 
 	return
-}
-
-func (c *context) valueAt(s *selectorValue) (interface{}, error) {
-	return nil, nil
 }
