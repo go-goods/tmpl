@@ -42,6 +42,7 @@ func TestTemplateExecute(t *testing.T) {
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
+		{`{% with . %}{% end with %}`, nil, ``},
 		{`{% block foo %}{% end block %}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{%evoke foo%}`, nil, ``},
