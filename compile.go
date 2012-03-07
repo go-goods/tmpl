@@ -207,6 +207,8 @@ func subParse(parp *parser, end tokenType) (ex executer, err error) {
 func parseText(p *parser) (s parseState) {
 	//only accept literal, open, and eof
 	switch tok := p.next(); tok.typ {
+	case tokenComment:
+		return parseText
 	case tokenLiteral:
 		p.out <- constantValue(tok.dat)
 		return parseText
