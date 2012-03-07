@@ -24,6 +24,16 @@ func isConstantValue(v valueType) bool {
 	return false
 }
 
+func writeValue(w io.Writer, v interface{}) (err error) {
+	switch c := v.(type) {
+	case []byte:
+		_, err = w.Write(c)
+	default:
+		_, err = fmt.Fprintf(w, "%v", c)
+	}
+	return
+}
+
 // *******************
 // * Parsing Helpers *
 // *******************
@@ -95,11 +105,11 @@ func (s *selectorValue) Value(c *context) (interface{}, error) {
 }
 
 func (s *selectorValue) Execute(w io.Writer, c *context) (err error) {
-	v, err := s.Value(c)
+	val, err := s.Value(c)
 	if err != nil {
 		return
 	}
-	_, err = fmt.Fprint(w, v)
+	err = writeValue(w, val)
 	return
 }
 
@@ -197,7 +207,7 @@ func (s callValue) Execute(w io.Writer, c *context) (err error) {
 	if err != nil {
 		return
 	}
-	_, err = fmt.Fprint(w, val)
+	err = writeValue(w, val)
 	return
 }
 
