@@ -24,6 +24,7 @@ const (
 var (
 	modeChan   = make(chan Mode)
 	modeChange = make(chan Mode)
+	flocks     = newFileLock()
 )
 
 func init() {
@@ -114,6 +115,9 @@ func parseFile(file string) (tree *parseTree, err error) {
 //treeFor grabs the parseTree for the specified absolute path, grabbing it from
 //the cache if t.compiled is true
 func (t *Template) treeFor(abs string, mode Mode) (tree *parseTree, err error) {
+	flocks.Lock(abs)
+	defer flocks.Unlock(abs)
+
 	if mode == Production {
 		//check for the cache
 		if tr, ex := cache[abs]; ex {
