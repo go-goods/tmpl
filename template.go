@@ -7,6 +7,98 @@ import (
 	"path/filepath"
 )
 
+type Mode bool
+
+func (m Mode) String() string {
+	if bool(m) {
+		return "Production"
+	}
+	return "Development"
+}
+
+const (
+	Development Mode = false
+	Production  Mode = true
+)
+
+var (
+	modeChan   = make(chan Mode)
+	modeChange = make(chan Mode)
+	flocks     = newFileLock()
+)
+
+func init() {
+	go modeSpitter()
+}
+
+func modeSpitter() {
+	mode := Development
+	for {
+		select {
+		case modeChan <- mode:
+		case mode = <-modeChange:
+		}
+	}
+}
+
+func CompileMode(mode Mode) {
+	modeChange <- mode
+}
+
+var cache = map[string]*parseTree{}
+
+func newTemplate(file string) *Template {
+	return &Template{
+		base: file,
+	}
+}
+
+type Template struct {
+	//base and globs represent work to be done
+	base      string
+	globs     []string
+	tempglobs []string
+
+	//our parse tree
+	tree *parseTree
+}
+
+func (t *Template) Blocks(globs ...string) *Template {
+	t.globs = append(t.globs, globs...)
+	return t
+}
+
+func (t *Template) compile() (err error) {
+	mode := <-modeChan
+	//figure out what work needs to be done
+	if t.base != "" {
+		err = t.updateBase(mode)
+		if err != nil {
+			return
+		}
+		if mode == Production {
+			t.base = ""
+		}
+	}
+	if len(t.globs) > 0 {
+		err = t.updateGlobs(t.globs, mode)
+		if err != nil {
+			return
+		}
+		if mode == Production {
+			t.globs = nil
+		}
+	}
+	if len(t.tempglobs) > 0 {
+		err = t.updateGlobs(t.tempglobs, mode)
+		if err != nil {
+			return
+		}
+		t.tempglobs = nil
+	}
+	return
+}
+
 func parseFile(file string) (tree *parseTree, err error) {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -20,53 +112,82 @@ func parseFile(file string) (tree *parseTree, err error) {
 	return
 }
 
-func newTemplate(tree *parseTree) *Template {
-	return &Template{
-		tree: tree,
-	}
-}
+//treeFor grabs the parseTree for the specified absolute path, grabbing it from
+//the cache if t.compiled is true
+func (t *Template) treeFor(abs string, mode Mode) (tree *parseTree, err error) {
+	flocks.Lock(abs)
+	defer flocks.Unlock(abs)
 
-type Template struct {
-	tree *parseTree
-}
-
-func (t *Template) attachGlob(glob string) (err error) {
-	m, err := filepath.Glob(glob)
-	if err != nil {
-		return
-	}
-
-	for _, file := range m {
-		err = t.attachBlocks(file)
-		if err != nil {
+	if mode == Production {
+		//check for the cache
+		if tr, ex := cache[abs]; ex {
+			tree = tr
 			return
 		}
 	}
-	return
-}
-
-func (t *Template) attachBlocks(file string) (err error) {
-	tree, err := parseFile(file)
+	tree, err = parseFile(abs)
 	if err != nil {
 		return
 	}
-	//grab the blocks out
-	for key, val := range tree.context.blocks {
-		if bl, ex := t.tree.context.blocks[key]; ex {
-			return fmt.Errorf("%q: Block named %q already loaded from %q", file, bl.ident, bl.file)
-		}
-		t.tree.context.blocks[key] = val
-	}
+	cache[abs] = tree
 	return
 }
 
-func (t *Template) Blocks(globs ...string) (err error) {
+func (t *Template) updateBase(mode Mode) (err error) {
+	abs, err := filepath.Abs(t.base)
+	if err != nil {
+		return
+	}
+	t.tree, err = t.treeFor(abs, mode)
+	return
+}
+
+func (t *Template) updateGlobs(globs []string, mode Mode) (err error) {
 	for _, glob := range globs {
-		err = t.attachGlob(glob)
-
+		err = t.updateGlob(glob, mode)
 		if err != nil {
 			return
 		}
+	}
+	return
+}
+
+func (t *Template) updateGlob(glob string, mode Mode) (err error) {
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		return
+	}
+	for _, file := range files {
+		err = t.loadBlocks(file, mode)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (t *Template) loadBlocks(file string, mode Mode) (err error) {
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return
+	}
+	tree, err := t.treeFor(abs, mode)
+	if err != nil {
+		return
+	}
+	err = t.updateBlocks(file, tree.context.blocks)
+	return
+}
+
+func (t *Template) updateBlocks(file string, blocks map[string]*executeBlockValue) (err error) {
+	tblk := t.tree.context.blocks
+	for id, bl := range blocks {
+		if _, ex := tblk[id]; ex {
+			err = fmt.Errorf("%q: %q already exists from %q", file, id, bl.file)
+			return
+		}
+		bl.file = file
+		tblk[id] = bl
 	}
 	return
 }
@@ -77,7 +198,9 @@ func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err e
 	defer t.tree.context.restore()
 
 	//add in our temporary blocks
-	err = t.Blocks(globs...)
+	t.tempglobs = globs
+
+	err = t.compile()
 	if err != nil {
 		return
 	}
@@ -86,19 +209,7 @@ func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err e
 	return t.tree.Execute(w, ctx)
 }
 
-func Parse(file string) (t *Template, err error) {
-	tree, err := parseFile(file)
-	if err != nil {
-		return
-	}
-	t = newTemplate(tree)
-	return
-}
-
-func MustParse(file string) (t *Template) {
-	t, err := Parse(file)
-	if err != nil {
-		panic(err)
-	}
+func Parse(file string) (t *Template) {
+	t = newTemplate(file)
 	return
 }
