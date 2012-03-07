@@ -57,6 +57,7 @@ func (p path) lastValue() reflect.Value {
 }
 
 func (p path) dup() (d path) {
+	d = make(path, len(p))
 	copy(d, p)
 	return
 }

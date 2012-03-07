@@ -155,6 +155,15 @@ func (e *executeEvoke) Execute(w io.Writer, c *context) (err error) {
 	if ex == nil {
 		return fmt.Errorf("No block by the name %s", e.ident)
 	}
+
+	//set up our context
+	if e.ctx != nil {
+		defer c.setStack(c.stack.dup())
+		if err = c.cd(e.ctx); err != nil {
+			return
+		}
+	}
+
 	return ex.Execute(w, c)
 }
 
@@ -172,6 +181,12 @@ type executeWith struct {
 }
 
 func (e *executeWith) Execute(w io.Writer, c *context) (err error) {
+	//set up our context
+	defer c.setStack(c.stack.dup())
+	if err = c.cd(e.ctx); err != nil {
+		return
+	}
+
 	return e.ex.Execute(w, c)
 }
 

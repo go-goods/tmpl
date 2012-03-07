@@ -44,6 +44,34 @@ func TestExecuteNoContext(t *testing.T) {
 	}
 }
 
+func TestExecuteSimpleBlock(t *testing.T) {
+	tree, err := parse(lex([]byte(`{% block foo %}{% . %}{% end block %}{% evoke foo .foo %}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
+		t.Fatal(err)
+	}
+	if g := buf.String(); g != "foo" {
+		t.Fatalf("\nGot %q\nExp %q", g, "foo")
+	}
+}
+
+func TestExecuteSimpleWith(t *testing.T) {
+	tree, err := parse(lex([]byte(`{% with .foo %}{% . %}{% end with %}{% .foo %}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
+		t.Fatal(err)
+	}
+	if g := buf.String(); g != "foofoo" {
+		t.Fatalf("\nGot %q\nExp %q", g, "foofoo")
+	}
+}
+
 func TestExecuteEvokeNoBlock(t *testing.T) {
 	tree, err := parse(lex([]byte(`{% evoke foo %}`)))
 	if err != nil {

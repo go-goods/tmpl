@@ -80,12 +80,18 @@ func (c *context) String() string {
 func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
 	var rv reflect.Value
 	switch {
+	case s == nil:
+		err = fmt.Errorf("%q: can't get the value for a nil selector", c.stack)
+		return
 	case s.abs:
 		rv, err = path(c.stack[:1]).valueAt(s.path)
 		if err != nil {
 			return
 		}
 		v = rv.Interface()
+	case s.pops < 0 || s.pops >= len(c.stack):
+		err = fmt.Errorf("%q: cant pop %d items", c.stack, s.pops)
+		return
 	case s.pops > 0:
 		rv, err = path(c.stack[:len(c.stack)-(s.pops)]).valueAt(s.path)
 		if err != nil {
@@ -99,6 +105,23 @@ func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
 		}
 		v = rv.Interface()
 	}
+	return
+}
+
+func (c *context) cd(s *selectorValue) (err error) {
+	switch {
+	case s == nil:
+		err = fmt.Errorf("%q: can't get the value for a nil selector", c.stack)
+		return
+	case s.abs:
+		c.stack = c.stack[:1]
+	case s.pops < 0 || s.pops >= len(c.stack):
+		err = fmt.Errorf("%q: cant pop %d items", c.stack, s.pops)
+		return
+	case s.pops > 0:
+		c.stack = c.stack[:len(c.stack)-s.pops]
+	}
+	err = c.stack.cd(s.path)
 	return
 }
 
