@@ -37,8 +37,14 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 	switch val.Kind() {
 	case reflect.Map:
 		v = val.MapIndex(reflect.ValueOf(key))
+		if !v.IsValid() {
+			err = fmt.Errorf("%q.%q: field not found", stack, key)
+		}
 	case reflect.Struct:
 		v = val.FieldByName(key)
+		if !v.IsValid() {
+			err = fmt.Errorf("%q.%q: field not found", stack, key)
+		}
 	default:
 		err = fmt.Errorf("%q.%q: cant indirect into %q", stack, key, val.Kind())
 	}

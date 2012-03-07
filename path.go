@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 type pathItem struct {
@@ -80,7 +81,7 @@ func (p path) valueAt(keys []string) (v reflect.Value, err error) {
 	for i, key := range keys {
 		v, err = access(p, v, key)
 		if err != nil {
-			return v, fmt.Errorf("%q: Error accessing item %d: %q", p, i, key)
+			return v, fmt.Errorf("%s%s: Error accessing item %d: %q", p, strings.Join(keys[:i+1], "."), i, key)
 		}
 	}
 	return
