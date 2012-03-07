@@ -77,6 +77,13 @@ func (c *context) String() string {
 	return buf.String()
 }
 
+//sets what file the blocks on context was generated from
+func (c *context) setFile(file string) {
+	for _, val := range c.blocks {
+		val.file = file
+	}
+}
+
 func (c *context) dup() {
 	c.backup = map[string]*executeBlockValue{}
 	for key := range c.blocks {

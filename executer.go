@@ -137,6 +137,7 @@ func (e *executeList) dropWhitespace() {
 
 type executeBlockValue struct {
 	ident string
+	file  string
 	ex    executer
 }
 

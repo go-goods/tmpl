@@ -326,7 +326,7 @@ func parseBlock(p *parser) parseState {
 		return p.errorf(err.Error())
 	}
 
-	p.blocks <- &executeBlockValue{string(ident.dat), ex}
+	p.blocks <- &executeBlockValue{string(ident.dat), "", ex}
 	return parseText
 }
 
