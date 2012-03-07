@@ -26,6 +26,7 @@ func TestExecuteNoContext(t *testing.T) {
 		{`this is just a literal`, `this is just a literal`},
 		{`{% block foo %}test{% end block %}{% evoke foo %}`, `test`},
 		{`t{%%}e{%%}s{%%}t{%%}`, `test`},
+		{`{# foo #}test`, `test`},
 	}
 	for _, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
