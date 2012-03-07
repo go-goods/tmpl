@@ -278,8 +278,9 @@ func (e *executeRange) rangeSlice(w io.Writer, c *context, v reflect.Value, kstr
 }
 
 func (e *executeRange) rangeStruct(w io.Writer, c *context, v reflect.Value, kstr, vstr string) (err error) {
+	typ := v.Type()
 	for i := 0; i < v.NumField(); i++ {
-		c.setAt(kstr, i)
+		c.setAt(kstr, typ.Field(i).Name)
 		c.setAt(vstr, indirect(v.Field(i)).Interface())
 		err = e.ex.Execute(w, c)
 	}
