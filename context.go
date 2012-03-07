@@ -31,9 +31,9 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 			v = reflect.Value{}
 			err = fmt.Errorf("%q.%q: %q", stack, key, e)
 		}
-		v = indirect(v)
 	}()
 
+	val = indirect(val)
 	switch val.Kind() {
 	case reflect.Map:
 		v = val.MapIndex(reflect.ValueOf(key))

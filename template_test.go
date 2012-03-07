@@ -5,7 +5,15 @@ import (
 	"testing"
 )
 
+type s struct{}
+
+func (s *s) String() string {
+	return "foo"
+}
+
 func TestTemplateExecute(t *testing.T) {
+	type snes struct{ Bar *s }
+
 	cases := []struct {
 		templ  string
 		ctx    interface{}
@@ -27,7 +35,6 @@ func TestTemplateExecute(t *testing.T) {
 		{`{% .foo %}`, d{"foo": d{"bar": "baz"}}, `map[bar:baz]`},
 		{`{% .foo %}`, d{"foo": 0xBEEF}, `48879`},
 		{`{% .foo %}`, d{"foo": []byte("bar")}, `bar`},
-		// I don't disagree with this output (next 3)
 		{`{% .foo %}`, d{"foo": []int{1, 2, 3}}, `[1 2 3]`},
 		{`{% .foo %}`, d{"foo": []float64{1, 2, 3}}, `[1 2 3]`},
 		{
@@ -66,6 +73,10 @@ func TestTemplateExecute(t *testing.T) {
 			struct{ Foo, Baz string }{"bar", "bif"},
 			`FoobarBazbif`,
 		},
+		{`{%.%}`, s{}, `{}`},
+		{`{%.%}`, &s{}, `foo`},
+		{`{%.foo%}`, d{"foo": &s{}}, `foo`},
+		{`{%.foo.Bar%}`, d{"foo": &snes{&s{}}}, `foo`},
 	}
 	for id, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
