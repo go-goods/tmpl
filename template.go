@@ -198,7 +198,7 @@ func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err e
 	defer t.tree.context.restore()
 
 	//add in our temporary blocks
-	t.tempglobs = append(t.tempglobs, globs...)
+	t.tempglobs = globs
 
 	err = t.compile()
 	if err != nil {
