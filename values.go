@@ -90,11 +90,11 @@ type selectorValue struct {
 	path []string
 }
 
-func (s selectorValue) Value(c *context) (interface{}, error) {
-	return nil, nil
+func (s *selectorValue) Value(c *context) (interface{}, error) {
+	return c.valueFor(s)
 }
 
-func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
+func (s *selectorValue) Execute(w io.Writer, c *context) (err error) {
 	v, err := s.Value(c)
 	if err != nil {
 		return
@@ -103,7 +103,7 @@ func (s selectorValue) Execute(w io.Writer, c *context) (err error) {
 	return
 }
 
-func (s selectorValue) String() string {
+func (s *selectorValue) String() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "[selector $%d", s.pops)
 	for _, tok := range s.path {

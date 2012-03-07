@@ -1,4 +1,4 @@
- package tmpl
+package tmpl
 
 import (
 	"bytes"
@@ -25,6 +25,7 @@ func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
 	if p.base == nil {
 		return nil
 	}
+	p.context.stack = pathRootedAt(ctx)
 	return p.base.Execute(w, p.context)
 }
 
