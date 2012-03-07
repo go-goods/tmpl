@@ -259,7 +259,7 @@ func (e *executeRange) String() string {
 	return fmt.Sprintf("[range %s] %s", e.iter, e.ex)
 }
 
-func (e *executeRange) rangeMap(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+func (e *executeRange) rangeMap(w io.Writer, c *context, v reflect.Value, kstr, vstr string) (err error) {
 	for _, key := range v.MapKeys() {
 		c.setAt(kstr, indirect(key).Interface())
 		c.setAt(vstr, indirect(v.MapIndex(key)).Interface())
@@ -268,7 +268,7 @@ func (e *executeRange) rangeMap(w io.Writer, c *context, v reflect.Value, vstr, 
 	return
 }
 
-func (e *executeRange) rangeSlice(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+func (e *executeRange) rangeSlice(w io.Writer, c *context, v reflect.Value, kstr, vstr string) (err error) {
 	for i := 0; i < v.Len(); i++ {
 		c.setAt(kstr, i)
 		c.setAt(vstr, indirect(v.Index(i)).Interface())
@@ -277,7 +277,7 @@ func (e *executeRange) rangeSlice(w io.Writer, c *context, v reflect.Value, vstr
 	return
 }
 
-func (e *executeRange) rangeStruct(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+func (e *executeRange) rangeStruct(w io.Writer, c *context, v reflect.Value, kstr, vstr string) (err error) {
 	for i := 0; i < v.NumField(); i++ {
 		c.setAt(kstr, i)
 		c.setAt(vstr, indirect(v.Field(i)).Interface())

@@ -51,6 +51,16 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
+		{
+			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range%}`,
+			[]string{"foo", "bar", "baz"},
+			`0foo1bar2baz`,
+		},
+		{
+			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range %}`,
+			d{"foo": "bar"},
+			`foobar`,
+		},
 	}
 	for id, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
