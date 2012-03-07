@@ -42,6 +42,11 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": []float64{1.41421356, 2.71828183, 3.14159265}},
 			`[1.41421356 2.71828183 3.14159265]`,
 		},
+		// Stringer Satisfactories
+		{`{%.%}`, s{}, `{}`},
+		{`{%.%}`, &s{}, `foo`},
+		{`{%.foo%}`, d{"foo": &s{}}, `foo`},
+		{`{%.foo.Bar%}`, d{"foo": &snes{&s{}}}, `foo`},
 		// Multi-level context selection
 		{`{% .foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
 		{`{% /.foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
@@ -49,7 +54,6 @@ func TestTemplateExecute(t *testing.T) {
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
-		{`{% with . %}{% end with %}`, nil, ``},
 		{`{% block foo %}{% end block %}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{%evoke foo%}`, nil, ``},
@@ -58,6 +62,7 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
+		// Range
 		{
 			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range%}`,
 			[]string{"foo", "bar", "baz"},
@@ -73,10 +78,8 @@ func TestTemplateExecute(t *testing.T) {
 			struct{ Foo, Baz string }{"bar", "bif"},
 			`FoobarBazbif`,
 		},
-		{`{%.%}`, s{}, `{}`},
-		{`{%.%}`, &s{}, `foo`},
-		{`{%.foo%}`, d{"foo": &s{}}, `foo`},
-		{`{%.foo.Bar%}`, d{"foo": &snes{&s{}}}, `foo`},
+		// With
+		{`{% with . %}{% end with %}`, nil, ``},
 	}
 	for id, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
