@@ -16,18 +16,27 @@ type path []pathItem
 
 func pathRootedAt(v interface{}) path {
 	return path{pathItem{
-		name: "",
+		name: "/",
 		val:  reflect.ValueOf(v),
 	}}
 }
 
 func (p path) String() string {
-	var buf bytes.Buffer
-	fmt.Fprint(&buf, "/")
-	for _, it := range p {
-		fmt.Fprintf(&buf, ".%s", it.name)
+	if len(p) == 1 {
+		return "/."
+	}
+	buf := bytes.NewBufferString("/")
+	for _, it := range p[1:] {
+		fmt.Fprintf(buf, ".%s", it.name)
 	}
 	return buf.String()
+}
+
+func (p path) StringWith(its []string) string {
+	if len(p) == 1 {
+		return fmt.Sprintf("/.%s", strings.Join(its, "."))
+	}
+	return fmt.Sprintf("%s.%s", p, strings.Join(its, "."))
 }
 
 func (p path) itemBehind(num int) (i pathItem, err error) {

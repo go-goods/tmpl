@@ -7,6 +7,20 @@ import (
 
 type d map[string]interface{}
 
+func TestContextSetPath(t *testing.T) {
+	c := newContext()
+	c.stack = pathRootedAt(nil)
+	sel := &selectorValue{0, false, []string{"foo", "bar", "baz"}}
+	c.set["/.foo.bar.baz"] = "baz"
+	val, err := c.valueFor(sel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if val.(string) != "baz" {
+		t.Fatal("Wrong value for selector")
+	}
+}
+
 func TestContextNestedMaps(t *testing.T) {
 	nested := d{"foo": d{"bar": d{"baz": "baz"}}}
 	c := newContext()

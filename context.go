@@ -55,12 +55,14 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 type context struct {
 	stack  path
 	blocks map[string]*executeBlockValue
+	set    map[string]interface{}
 }
 
 func newContext() *context {
 	return &context{
 		stack:  path{},
 		blocks: map[string]*executeBlockValue{},
+		set:    map[string]interface{}{},
 	}
 }
 
@@ -78,33 +80,33 @@ func (c *context) String() string {
 }
 
 func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
-	var rv reflect.Value
+	var pth path
 	switch {
 	case s == nil:
 		err = fmt.Errorf("%q: can't get the value for a nil selector", c.stack)
 		return
 	case s.abs:
-		rv, err = path(c.stack[:1]).valueAt(s.path)
-		if err != nil {
-			return
-		}
-		v = rv.Interface()
+		pth = path(c.stack[:1])
 	case s.pops < 0 || s.pops >= len(c.stack):
 		err = fmt.Errorf("%q: cant pop %d items", c.stack, s.pops)
 		return
 	case s.pops > 0:
-		rv, err = path(c.stack[:len(c.stack)-(s.pops)]).valueAt(s.path)
-		if err != nil {
-			return
-		}
-		v = rv.Interface()
+		pth = path(c.stack[:len(c.stack)-(s.pops)])
 	default:
-		rv, err = c.stack.valueAt(s.path)
-		if err != nil {
-			return
-		}
-		v = rv.Interface()
+		pth = c.stack
 	}
+
+	//check our path override for that value
+	if iv, ex := c.set[pth.StringWith(s.path)]; ex {
+		v = iv
+		return
+	}
+
+	rv, err := pth.valueAt(s.path)
+	if err != nil {
+		return
+	}
+	v = rv.Interface()
 	return
 }
 
