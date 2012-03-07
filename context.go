@@ -54,13 +54,13 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 
 type context struct {
 	stack  path
-	blocks map[string]executer
+	blocks map[string]*executeBlockValue
 }
 
 func newContext() *context {
 	return &context{
 		stack:  path{},
-		blocks: map[string]executer{},
+		blocks: map[string]*executeBlockValue{},
 	}
 }
 
@@ -129,6 +129,6 @@ func (c *context) setStack(p path) {
 	c.stack = p
 }
 
-func (c *context) getBlock(name string) executer {
+func (c *context) getBlock(name string) *executeBlockValue {
 	return c.blocks[name]
 }
