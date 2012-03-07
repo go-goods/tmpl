@@ -134,3 +134,15 @@ func (c *context) setStack(p path) {
 func (c *context) getBlock(name string) *executeBlockValue {
 	return c.blocks[name]
 }
+
+func (c *context) setAt(path string, value interface{}) {
+	if path != "" {
+		c.set[path] = value
+	}
+}
+
+func (c *context) unsetAt(path string) {
+	if path != "" {
+		delete(c.set, path)
+	}
+}

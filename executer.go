@@ -223,11 +223,67 @@ type executeRange struct {
 func (e *executeRange) Execute(w io.Writer, c *context) (err error) {
 	//TODO: have to reflect on the value in order to range it
 	//be sure to look at e.key and e.val to set/unset the vars
-	return nil
+	it, err := e.iter.Value(c)
+	if err != nil {
+		return
+	}
+
+	var kstr, vstr string
+	if s := string(e.key.dat); s != "" && s != "_" {
+		kstr = c.stack.StringWith([]string{s})
+	}
+	if s := string(e.val.dat); s != "" && s != "_" {
+		vstr = c.stack.StringWith([]string{s})
+	}
+
+	//check to see if we can iterate over it
+	rv := reflect.ValueOf(it)
+	switch rv.Kind() {
+	case reflect.Map:
+		err = e.rangeMap(w, c, rv, kstr, vstr)
+	case reflect.Slice, reflect.Array:
+		err = e.rangeSlice(w, c, rv, kstr, vstr)
+	case reflect.Struct:
+		err = e.rangeStruct(w, c, rv, kstr, vstr)
+	default:
+		err = fmt.Errorf("%s is a %v, a non iterable type", e.iter, rv.Kind())
+	}
+
+	c.unsetAt(kstr)
+	c.unsetAt(vstr)
+
+	return
 }
 
 func (e *executeRange) String() string {
 	return fmt.Sprintf("[range %s] %s", e.iter, e.ex)
+}
+
+func (e *executeRange) rangeMap(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+	for _, key := range v.MapKeys() {
+		c.setAt(kstr, indirect(key).Interface())
+		c.setAt(vstr, indirect(v.MapIndex(key)).Interface())
+		err = e.ex.Execute(w, c)
+	}
+	return
+}
+
+func (e *executeRange) rangeSlice(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+	for i := 0; i < v.Len(); i++ {
+		c.setAt(kstr, i)
+		c.setAt(vstr, indirect(v.Index(i)).Interface())
+		err = e.ex.Execute(w, c)
+	}
+	return
+}
+
+func (e *executeRange) rangeStruct(w io.Writer, c *context, v reflect.Value, vstr, kstr string) (err error) {
+	for i := 0; i < v.NumField(); i++ {
+		c.setAt(kstr, i)
+		c.setAt(vstr, indirect(v.Field(i)).Interface())
+		err = e.ex.Execute(w, c)
+	}
+	return
 }
 
 // **************
