@@ -20,53 +20,137 @@ func parseFile(file string) (tree *parseTree, err error) {
 	return
 }
 
-func newTemplate(tree *parseTree) *Template {
+func newTemplate(file string) *Template {
 	return &Template{
-		tree: tree,
+		base: file,
 	}
 }
 
 type Template struct {
+	//cache of compiled files
+	cache map[string]*parseTree
+
+	//base and globs represent work to be done
+	base      string
+	globs     []string
+	tempglobs []string
+
+	//if we have compiled
+	compiled bool
+
+	//our parse tree
 	tree *parseTree
 }
 
-func (t *Template) attachGlob(glob string) (err error) {
-	m, err := filepath.Glob(glob)
+func (t *Template) Blocks(globs ...string) *Template {
+	t.globs = append(t.globs, globs...)
+	return t
+}
+
+func (t *Template) Compile() (err error) {
+	err = t.compile()
 	if err != nil {
 		return
 	}
+	t.compiled = true
+	return err
+}
 
-	for _, file := range m {
-		err = t.attachBlocks(file)
+func (t *Template) compile() (err error) {
+	//figure out what work needs to be done
+	if t.base != "" {
+		err = t.updateBase()
 		if err != nil {
 			return
 		}
+		t.base = ""
 	}
-	return
+	if len(t.globs) > 0 {
+		err = t.updateGlobs(t.globs)
+		if err != nil {
+			return
+		}
+		t.globs = nil
+	}
+	if len(t.tempglobs) > 0 {
+		err = t.updateGlobs(t.tempglobs)
+		if err != nil {
+			return
+		}
+		t.tempglobs = nil
+	}
 }
 
-func (t *Template) attachBlocks(file string) (err error) {
-	tree, err := parseFile(file)
+//treeFor grabs the parseTree for the specified absolute path, grabbing it from
+//the cache if t.compiled is true
+func (t *Template) treeFor(abs string) (tree *parseTree, err error) {
+	if t.compiled {
+		//check for the cache
+		if tr, ex := t.cache[abs]; ex {
+			tree = tr
+			return
+		}
+	}
+	tree, err = parseFile(abs)
 	if err != nil {
 		return
 	}
-	//grab the blocks out
-	for key, val := range tree.context.blocks {
-		if bl, ex := t.tree.context.blocks[key]; ex {
-			return fmt.Errorf("%q: Block named %q already loaded from %q", file, bl.ident, bl.file)
-		}
-		t.tree.context.blocks[key] = val
+	t.cache[abs] = tree
+}
+
+func (t *Template) updateBase() (err error) {
+	abs, err := filepath.Abs(t.base)
+	if err != nil {
+		return
 	}
+	t.tree, err = t.treeFor(abs)
 	return
 }
 
-func (t *Template) Blocks(globs ...string) (err error) {
+func (t *Template) updateGlobs(globs []string) (err error) {
 	for _, glob := range globs {
-		err = t.attachGlob(glob)
-
+		err = t.updateGlob(glob)
 		if err != nil {
 			return
 		}
+	}
+}
+
+func (t *Template) updateGlob(glob string) (err error) {
+	files, err := filepath.Glob(glob)
+	if err != nil {
+		return
+	}
+	for _, file := range files {
+		err = t.loadBlocks(file)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (t *Template) loadBlocks(file string) (err error) {
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return
+	}
+	tree, err := t.treeFor(abs)
+	if err != nil {
+		return
+	}
+	err = t.updateBlocks(file, tree.context.blocks)
+	return
+}
+
+func (t *Template) updateBlocks(file string, blocks []*executeBlockValue) (err error) {
+	tblk := t.tree.context.blocks
+	for id, blk := range blocks {
+		if bl, ex := tblk[id]; ex {
+			err = fmt.Errorf("%q: %q already exists from %q", file, id, blk.file)
+			return
+		}
+		blk.file = file
+		tblk[id] = blk
 	}
 	return
 }
@@ -77,7 +161,9 @@ func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err e
 	defer t.tree.context.restore()
 
 	//add in our temporary blocks
-	err = t.Blocks(globs...)
+	t.tempglobs = append(t.tempglobs, globs...)
+
+	err = t.compile()
 	if err != nil {
 		return
 	}
@@ -86,19 +172,7 @@ func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err e
 	return t.tree.Execute(w, ctx)
 }
 
-func Parse(file string) (t *Template, err error) {
-	tree, err := parseFile(file)
-	if err != nil {
-		return
-	}
-	t = newTemplate(tree)
-	return
-}
-
-func MustParse(file string) (t *Template) {
-	t, err := Parse(file)
-	if err != nil {
-		panic(err)
-	}
+func Parse(file string) (t *Template) {
+	t = newTemplate(file)
 	return
 }
