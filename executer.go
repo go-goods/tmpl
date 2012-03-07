@@ -137,7 +137,18 @@ func (e *executeList) dropWhitespace() {
 
 type executeBlockValue struct {
 	ident string
-	executer
+	ex    executer
+}
+
+func (e *executeBlockValue) Execute(w io.Writer, c *context) (err error) {
+	if e.ex == nil {
+		return
+	}
+	return e.ex.Execute(w, c)
+}
+
+func (e *executeBlockValue) String() string {
+	return e.ex.String()
 }
 
 // *****************
@@ -154,11 +165,6 @@ func (e *executeEvoke) Execute(w io.Writer, c *context) (err error) {
 	ex := c.getBlock(e.ident)
 	if ex == nil {
 		return fmt.Errorf("No block by the name %s", e.ident)
-	}
-
-	//check that the executer we're handing off to exists
-	if ex.executer == nil {
-		return
 	}
 
 	//set up our context
