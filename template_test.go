@@ -15,25 +15,18 @@ func TestTemplateExecute(t *testing.T) {
 		{`{##}`, nil, ``},
 		{`{###}`, nil, ``},
 		{`{#{#}`, nil, ``},
-		{`{#}#}`, nil, `#}`},      // ! - Originally expected ``
-		{`{#}`, nil, ``},          // !
-		{"{#\r#}", nil, ``},       // !
-		{`{#}foo{#}`, nil, `foo`}, // !
+		{`{#}#}`, nil, ``},
+		{"{#\r#}", nil, ``},
+		{`{#}foo{#}`, nil, ``},
 		// Single-level context selection
 		{`{% .foo %}`, d{"foo": "bar"}, `bar`},
 		{`{%.foo %}`, d{"foo": "bar"}, `bar`},
-		/* FIXME: Expected a "push", got a "0:6[error]invalid character: '%'(MISSING)"
 		{`{%.foo%}`, d{"foo": "bar"}, `bar`},
-		*/
-		/* FIXME: Expected a "push", got a "0:7[error]invalid character: '%'(MISSING)"
 		{`{% .foo%}`, d{"foo": "bar"}, `bar`},
-		*/
 		{`{% /.foo %}`, d{"foo": "bar"}, `bar`},
 		{`{% .foo %}`, d{"foo": d{"bar": "baz"}}, `map[bar:baz]`},
 		{`{% .foo %}`, d{"foo": 0xBEEF}, `48879`},
-		/* FIXME: Got "[98 97 114]"; Exp "bar"
 		{`{% .foo %}`, d{"foo": []byte("bar")}, `bar`},
-		*/
 		// I don't disagree with this output (next 3)
 		{`{% .foo %}`, d{"foo": []int{1, 2, 3}}, `[1 2 3]`},
 		{`{% .foo %}`, d{"foo": []float64{1, 2, 3}}, `[1 2 3]`},
@@ -49,28 +42,28 @@ func TestTemplateExecute(t *testing.T) {
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
-		/* FIXME: panic: runtime error: invalid memory address or nil pointer dereference [recovered]
 		{`{% block foo %}{% end block %}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{% evoke foo %}`, nil, ``},
 		{`{%block foo%}{%end block%}{%evoke foo%}`, nil, ``},
-		*/
 		{
 			`{% block foo %}{% .foo %}{% .bar %}{% end block %}{% evoke foo %}`,
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
 	}
-	for _, c := range cases {
+	for id, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("%d: %v", id, err)
+			continue
 		}
 		var buf bytes.Buffer
 		if err := tree.Execute(&buf, c.ctx); err != nil {
-			t.Fatal(err)
+			t.Errorf("%d: %v", id, err)
+			continue
 		}
 		if g := buf.String(); g != c.expect {
-			t.Fatalf("\nGot %q\nExp %q", g, c.expect)
+			t.Errorf("%d\nGot %q\nExp %q", id, g, c.expect)
 		}
 	}
 }
