@@ -52,6 +52,7 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 type context struct {
 	stack  path
 	blocks map[string]*executeBlockValue
+	backup map[string]*executeBlockValue
 	set    map[string]interface{}
 }
 
@@ -74,6 +75,20 @@ func (c *context) String() string {
 	}
 	fmt.Fprintln(&buf, "}")
 	return buf.String()
+}
+
+func (c *context) dup() {
+	c.backup = map[string]*executeBlockValue{}
+	for key := range c.blocks {
+		c.backup[key] = c.blocks[key]
+	}
+}
+
+func (c *context) restore() {
+	c.blocks = map[string]*executeBlockValue{}
+	for key := range c.backup {
+		c.blocks[key] = c.backup[key]
+	}
 }
 
 func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
