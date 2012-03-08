@@ -33,55 +33,66 @@ func TestValueParseSelector(t *testing.T) {
 	}
 }
 
-func TestValueCallNoArgs(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% call foo %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tree.context.funcs["foo"] = reflect.ValueOf(func() string { return "foo" })
+type callTest struct {
+	tmpl string
+	name string
+	fn   interface{}
+	ctx  interface{}
+	exp  string
+}
 
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, nil); err != nil {
-		t.Fatal(err)
-	}
+func executePassingCallTests(t *testing.T, cases []callTest) {
+	for id, c := range cases {
+		tree, err := parse(lex([]byte(c.tmpl)))
+		if err != nil {
+			t.Errorf("%d: error parsing: %s", id, err)
+			continue
+		}
 
-	if got := buf.String(); got != "foo" {
-		t.Fatalf("Expected %q. Got %q", "foo", got)
+		tree.context.funcs[c.name] = reflect.ValueOf(c.fn)
+		var buf bytes.Buffer
+		if err := tree.Execute(&buf, c.ctx); err != nil {
+			t.Errorf("%d: error executing: %s", id, err)
+			continue
+		}
+
+		if got := buf.String(); got != c.exp {
+			t.Errorf("%d:\nExp %q\nGot %q", id, c.exp, got)
+		}
 	}
 }
 
-func TestValueCallOneArg(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% call foo .foo %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tree.context.funcs["foo"] = reflect.ValueOf(func(x string) string { return x })
-
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := buf.String(); got != "foo" {
-		t.Fatalf("Expected %q. Got %q", "foo", got)
-	}
-}
-
-func TestValueCallReturnsRange(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% range call foo as _ foo %}{% .foo %}{% end range %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tree.context.funcs["foo"] = reflect.ValueOf(func(string) (string, string) { return "foo", "bar" })
-
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if got := buf.String(); got != "foobar" {
-		t.Fatalf("Expected %q. Got %q", "foo", got)
-	}
+func TestValueCallPasses(t *testing.T) {
+	executePassingCallTests(t, []callTest{
+		{
+			`{% call foo %}`,
+			`foo`,
+			func() string { return "foo" },
+			nil,
+			"foo",
+		},
+		{
+			`{% call foo .foo %}`,
+			`foo`,
+			func(x string) string { return x },
+			d{"foo": "foo"},
+			"foo",
+		},
+		{
+			`{% range call foo as _ foo %}{% .foo %}{% end range %}`,
+			`foo`,
+			func() (string, string) { return "foo", "bar" },
+			nil,
+			"foobar",
+		},
+		{
+			`{% call add .a .b %}`,
+			`add`,
+			func(a, b int) int { return a + b },
+			d{"a": 10, "b": 20},
+			"30",
+		},
+	})
 }
 
 func TestValueBadSelectors(t *testing.T) {
