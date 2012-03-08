@@ -2,10 +2,12 @@ package tmpl
 
 import "testing"
 
+type parseFailCase struct {
+	code string
+}
+
 func TestParseExpectedFailures(t *testing.T) {
-	cases := []struct {
-		code string
-	}{
+	executeParseFails(t, []parseFailCase{
 		{`{%%}`},
 		{`{% %}`},
 		{`{% block %}`},
@@ -32,8 +34,10 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% end range %}`},
 		{`{% end with %}`},
 		{`{% block foo %}{% block bar %}{% end block %}{% end block %}`},
-	}
+	})
+}
 
+func executeParseFails(t *testing.T, cases []parseFailCase) {
 	for id, c := range cases {
 		for token := range lex([]byte(c.code)) {
 			if token.typ == tokenError {
