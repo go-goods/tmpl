@@ -6,6 +6,8 @@ func TestParseExpectedFailures(t *testing.T) {
 	cases := []struct {
 		code string
 	}{
+		{`{%%}`},
+		{`{% %}`},
 		{`{% block %}`},
 		{`{% block foo %}`},
 		{`{% block %}{% end block %}`},
