@@ -6,52 +6,26 @@ import (
 	"testing"
 )
 
+type templatePassCase struct {
+	template string
+	context  interface{}
+	expect   string
+}
+
+type templateFailCase struct {
+	template string
+	context  interface{}
+}
+
 type s struct{}
 
 func (s *s) String() string {
 	return "foo"
 }
 
-func TestTemplateExecute(t *testing.T) {
-	type snes struct{ Bar *s }
+func TestTemplatePassBlocks(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
 
-	cases := []struct {
-		templ  string
-		ctx    interface{}
-		expect string
-	}{
-		// Comments
-		{`{##}`, nil, ``},
-		{`{###}`, nil, ``},
-		{`{#{#}`, nil, ``},
-		{`{#}#}`, nil, ``},
-		{"{#\r#}", nil, ``},
-		{`{#}foo{#}`, nil, ``},
-		// Single-level context selection
-		{`{% .foo %}`, d{"foo": "bar"}, `bar`},
-		{`{%.foo %}`, d{"foo": "bar"}, `bar`},
-		{`{%.foo%}`, d{"foo": "bar"}, `bar`},
-		{`{% .foo%}`, d{"foo": "bar"}, `bar`},
-		{`{% /.foo %}`, d{"foo": "bar"}, `bar`},
-		{`{% .foo %}`, d{"foo": d{"bar": "baz"}}, `map[bar:baz]`},
-		{`{% .foo %}`, d{"foo": 0xBEEF}, `48879`},
-		{`{% .foo %}`, d{"foo": []byte("bar")}, `bar`},
-		{`{% .foo %}`, d{"foo": []int{1, 2, 3}}, `[1 2 3]`},
-		{`{% .foo %}`, d{"foo": []float64{1, 2, 3}}, `[1 2 3]`},
-		{
-			`{% .foo %}`,
-			d{"foo": []float64{1.41421356, 2.71828183, 3.14159265}},
-			`[1.41421356 2.71828183 3.14159265]`,
-		},
-		// Stringer Satisfactories
-		{`{%.%}`, s{}, `{}`},
-		{`{%.%}`, &s{}, `foo`},
-		{`{%.foo%}`, d{"foo": &s{}}, `foo`},
-		{`{%.foo.Bar%}`, d{"foo": &snes{&s{}}}, `foo`},
-		// Multi-level context selection
-		{`{% .foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
-		{`{% /.foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
-		// Blocks
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
@@ -63,7 +37,23 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
-		// Range - Space check
+	})
+}
+
+func TestTemplatePassComments(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		{`{##}`, nil, ``},
+		{`{###}`, nil, ``},
+		{`{#{#}`, nil, ``},
+		{`{#}#}`, nil, ``},
+		{"{#\r#}", nil, ``},
+		{`{#}foo{#}`, nil, ``},
+	})
+}
+
+func TestTemplatePassRanges(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		// Space check
 		{
 			`{% range . as k v %}{% .k %}{% .v %}{% end range %}`,
 			[]int{0, 1, 2},
@@ -104,7 +94,12 @@ func TestTemplateExecute(t *testing.T) {
 			[]int{0, 1, 2},
 			`001122`,
 		},
-		// Range
+		// Usage
+		{
+			`{% range . %}{% .key %}{% .val %}{% end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
 		{
 			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range%}`,
 			[]string{"foo", "bar", "baz"},
@@ -120,7 +115,44 @@ func TestTemplateExecute(t *testing.T) {
 			struct{ Foo, Baz string }{"bar", "bif"},
 			`FoobarBazbif`,
 		},
-		// With - Space check
+	})
+}
+
+func TestTemplatePassSelections(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		{`{% .foo %}`, d{"foo": "bar"}, `bar`},
+		{`{%.foo %}`, d{"foo": "bar"}, `bar`},
+		{`{%.foo%}`, d{"foo": "bar"}, `bar`},
+		{`{% .foo%}`, d{"foo": "bar"}, `bar`},
+		{`{% /.foo %}`, d{"foo": "bar"}, `bar`},
+		{`{% .foo %}`, d{"foo": d{"bar": "baz"}}, `map[bar:baz]`},
+		{`{% .foo %}`, d{"foo": 0xBEEF}, `48879`},
+		{`{% .foo %}`, d{"foo": []byte("bar")}, `bar`},
+		{`{% .foo %}`, d{"foo": []int{1, 2, 3}}, `[1 2 3]`},
+		{`{% .foo %}`, d{"foo": []float64{1, 2, 3}}, `[1 2 3]`},
+		{
+			`{% .foo %}`,
+			d{"foo": []float64{1.41421356, 2.71828183, 3.14159265}},
+			`[1.41421356 2.71828183 3.14159265]`,
+		},
+		{`{% .foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
+		{`{% /.foo.bar %}`, d{"foo": d{"bar": "baz"}}, `baz`},
+	})
+}
+
+func TestTemplatePassStringers(t *testing.T) {
+	type snes struct{ Bar *s }
+	executeTemplatePasses(t, []templatePassCase{
+		{`{%.%}`, s{}, `{}`},
+		{`{%.%}`, &s{}, `foo`},
+		{`{%.foo%}`, d{"foo": &s{}}, `foo`},
+		{`{%.foo.Bar%}`, d{"foo": &snes{&s{}}}, `foo`},
+	})
+}
+
+func TestTemplatePassWiths(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		// Space check
 		{`{% with . %}{% end with %}`, nil, ``},
 		{`{%with . %}{% end with %}`, nil, ``},
 		{`{% with .%}{% end with %}`, nil, ``},
@@ -131,7 +163,7 @@ func TestTemplateExecute(t *testing.T) {
 		{`{%with .%}{%end with%}`, nil, ``},
 		{`{%with .%}{%.foo%}{%end with%}`, d{"foo": "bar"}, `bar`},
 		{`{%with .foo%}{%.%}{%end with%}`, d{"foo": "bar"}, `bar`},
-		// With - Usage
+		// Usage
 		{
 			`{% with .foo %}{% $.baz %}{% . %}{% end with %}`,
 			d{"foo": "bar", "baz": "bif"},
@@ -147,41 +179,44 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": d{"bar": d{"baz": d{"bif": 0}}}},
 			`map[foo:map[bar:map[baz:map[bif:0]]]]map[bar:map[baz:map[bif:0]]]0`,
 		},
-	}
+	})
+}
+
+func TestTemplateFails(t *testing.T) {
+	executeTemplateFails(t, []templateFailCase{
+		{`{% $.foo %}`, d{"foo": "bar"}},
+		{`{% with . %}{% $.foo %}{% end with %}`, d{"foo": "bar"}},
+		{`{% with .foo %}{% $$.foo %}{% end with %}`, d{"foo": "bar"}},
+	})
+}
+
+func executeTemplateFails(t *testing.T, cases []templateFailCase) {
 	for id, c := range cases {
-		tree, err := parse(lex([]byte(c.templ)))
+		tree, err := parse(lex([]byte(c.template)))
+		if err != nil {
+			// If this fires, move to TestLexExpectedFailures in lex_test.go
+			t.Errorf("%d: Parser error: %v", id, err)
+		}
+		if err := tree.Execute(ioutil.Discard, c.context); err == nil {
+			t.Errorf("%d: Did not fail: %v", id, c.template)
+		}
+	}
+}
+
+func executeTemplatePasses(t *testing.T, cases []templatePassCase) {
+	for id, c := range cases {
+		tree, err := parse(lex([]byte(c.template)))
 		if err != nil {
 			t.Errorf("%d: %v", id, err)
 			continue
 		}
 		var buf bytes.Buffer
-		if err := tree.Execute(&buf, c.ctx); err != nil {
+		if err := tree.Execute(&buf, c.context); err != nil {
 			t.Errorf("%d: %v", id, err)
 			continue
 		}
 		if g := buf.String(); g != c.expect {
 			t.Errorf("%d\nGot %q\nExp %q", id, g, c.expect)
-		}
-	}
-}
-
-func TestTemplateExecuteFailures(t *testing.T) {
-	cases := []struct {
-		templ string
-		ctx   interface{}
-	}{
-		{`{% $.foo %}`, d{"foo": "bar"}},
-		{`{% with . %}{% $.foo %}{% end with %}`, d{"foo": "bar"}},
-		{`{% with .foo %}{% $$.foo %}{% end with %}`, d{"foo": "bar"}},
-	}
-	for id, c := range cases {
-		tree, err := parse(lex([]byte(c.templ)))
-		if err != nil {
-			// If this fires, move to TestLexExpectedFailures in lex_test.go
-			t.Errorf("%d: Lexer error: %v", id, err)
-		}
-		if err := tree.Execute(ioutil.Discard, c.ctx); err == nil {
-			t.Errorf("%d: Did not fail: %v", id, c.templ)
 		}
 	}
 }
