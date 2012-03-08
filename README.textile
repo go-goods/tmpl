@@ -1,0 +1,21 @@
+h1. tmpl Templating System
+
+Please see the "generated documentation":http://gopkgdoc.appspot.com/pkg/github.com/goods/tmpl for now.
+
+h2. Contributing
+
+Any broken thing should first get logged as an issue. All fixes should occur in branches, followed by a pull request to get the fixes into master.
+
+Commit messages, when referencing any aspect of an issue, should begin with a quick descriptor, the issue number, and then the message.
+
+h3. Submitting Tests
+
+*Tests #123: Submitting test to verify break*
+
+h3. Commit Against an Issue
+
+*Re #123: Changed some thing to fix foo*
+
+h3. Merge Pull Request
+
+*Fixes #123: Merging fix for foo*
