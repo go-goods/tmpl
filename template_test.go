@@ -62,6 +62,47 @@ func TestTemplateExecute(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
+		// Range - Space check
+		{
+			`{% range . as k v %}{% .k %}{% .v %}{% end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{%range . as k v %}{% .k %}{% .v %}{% end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{% range . as k v%}{% .k %}{% .v %}{% end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{% range . as k v %}{% .k %}{% .v %}{%end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{% range . as k v %}{% .k %}{% .v %}{% end range%}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{% range . as k v %}{% .k %}{% .v %}{%end range%}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{%range . as k v%}{% .k %}{% .v %}{% end range %}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
+		{
+			`{%range . as k v%}{% .k %}{% .v %}{%end range%}`,
+			[]int{0, 1, 2},
+			`001122`,
+		},
 		// Range
 		{
 			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range%}`,
@@ -78,8 +119,33 @@ func TestTemplateExecute(t *testing.T) {
 			struct{ Foo, Baz string }{"bar", "bif"},
 			`FoobarBazbif`,
 		},
-		// With
+		// With - Space check
 		{`{% with . %}{% end with %}`, nil, ``},
+		{`{%with . %}{% end with %}`, nil, ``},
+		{`{% with .%}{% end with %}`, nil, ``},
+		{`{%with .%}{% end with %}`, nil, ``},
+		{`{% with . %}{%end with %}`, nil, ``},
+		{`{% with . %}{% end with%}`, nil, ``},
+		{`{% with . %}{%end with%}`, nil, ``},
+		{`{%with .%}{%end with%}`, nil, ``},
+		{`{%with .%}{%.foo%}{%end with%}`, d{"foo": "bar"}, `bar`},
+		{`{%with .foo%}{%.%}{%end with%}`, d{"foo": "bar"}, `bar`},
+		// With - Usage
+		{
+			`{% with .foo %}{% $.baz %}{% . %}{% end with %}`,
+			d{"foo": "bar", "baz": "bif"},
+			`bifbar`,
+		},
+		{
+			`{% with .foo.bar.baz.bif %}{% . %}{% $.bif %}{% $$.baz.bif %}{% $$$.bar.baz.bif %}{% end with %}`,
+			d{"foo": d{"bar": d{"baz": d{"bif": 0}}}},
+			`0000`,
+		},
+		{
+			`{% with .foo.bar.baz.bif %}{% /. %}{% /.foo %}{% /.foo.bar.baz.bif %}{% end with %}`,
+			d{"foo": d{"bar": d{"baz": d{"bif": 0}}}},
+			`map[foo:map[bar:map[baz:map[bif:0]]]]map[bar:map[baz:map[bif:0]]]0`,
+		},
 	}
 	for id, c := range cases {
 		tree, err := parse(lex([]byte(c.templ)))
