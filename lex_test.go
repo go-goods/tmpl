@@ -2,7 +2,7 @@ package tmpl
 
 import "testing"
 
-func TestLexEspected(t *testing.T) {
+func TestLexExpected(t *testing.T) {
 	cases := []struct {
 		name string
 		code string
