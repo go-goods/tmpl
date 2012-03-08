@@ -53,12 +53,14 @@ type context struct {
 	stack  path
 	blocks map[string]*executeBlockValue
 	backup map[string]*executeBlockValue
+	funcs  map[string]reflect.Value
 	set    map[string]interface{}
 }
 
 func newContext() *context {
 	return &context{
 		stack:  path{},
+		funcs:  map[string]reflect.Value{},
 		blocks: map[string]*executeBlockValue{},
 		set:    map[string]interface{}{},
 	}
