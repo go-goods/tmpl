@@ -93,7 +93,7 @@ func (p *parser) errorf(format string, args ...interface{}) parseState {
 }
 
 func (p *parser) errExpect(ex tokenType, got token) parseState {
-	return p.errorf("Expected a %q got a %q", ex, got)
+	return p.errorf("Compile: Expected a %q got a %q", ex, got)
 }
 
 func (p *parser) unexpected(t token) parseState {
@@ -364,11 +364,13 @@ func parseRange(p *parser) parseState {
 	//check for an as
 	if tok := p.next(); tok.typ == tokenAs {
 		//grab two idenitifers
-		if key = p.next(); key.typ != tokenIdent {
+		// #14 - Allow for anything, except tokenClose since the consumed token
+		// gets converted to a tokenIdent
+		if key = p.next(); key.typ == tokenClose {
 			return p.errExpect(tokenIdent, key)
 		}
-		if val = p.next(); val.typ != tokenIdent {
-			return p.errExpect(tokenIdent, key)
+		if val = p.next(); val.typ == tokenClose {
+			return p.errExpect(tokenIdent, val)
 		}
 	} else {
 		//whoops wasn't an as
