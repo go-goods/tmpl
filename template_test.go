@@ -103,6 +103,42 @@ func TestTemplateExecute(t *testing.T) {
 			[]int{0, 1, 2},
 			`001122`,
 		},
+		// Reserved words?
+		{
+			`{% range . as _ a %}{% .a %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ range %}{% .range %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ with %}{% .with %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ block %}{% .block %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ if %}{% .if %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ else %}{% .else %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
+		{
+			`{% range . as _ end %}{% .end %}{% end range %}`,
+			[]int{0, 1, 2},
+			`012`,
+		},
 		// Range
 		{
 			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range%}`,
