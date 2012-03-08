@@ -227,11 +227,18 @@ func (s callValue) Value(c *context) (v interface{}, err error) {
 		params = append(params, reflect.ValueOf(val))
 	}
 
-	var ret []interface{}
-	for _, item := range fnc.Call(params) {
-		ret = append(ret, item.Interface())
+	switch res := fnc.Call(params); len(res) {
+	case 0:
+	case 1:
+		v = res[0].Interface()
+	default:
+		var ret []interface{}
+		for _, item := range res {
+			ret = append(ret, item.Interface())
+		}
+		v = ret
 	}
-	v = ret
+
 	return
 }
 
