@@ -156,6 +156,10 @@ func (c *context) getBlock(name string) *executeBlockValue {
 	return c.blocks[name]
 }
 
+func (c *context) getCall(name string) reflect.Value {
+	return c.funcs[name]
+}
+
 func (c *context) setAt(path string, value interface{}) {
 	if path != "" {
 		c.set[path] = value
