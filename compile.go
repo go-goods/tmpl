@@ -261,9 +261,6 @@ func parseOpen(p *parser) parseState {
 	case tok.typ == tokenEnd:
 		return parseEnd
 
-	//do nothing
-	case tok.typ == tokenClose:
-		return parseText
 	default:
 		return p.unexpected(tok)
 	}
