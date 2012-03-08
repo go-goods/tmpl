@@ -50,6 +50,23 @@ func TestValueCallNoArgs(t *testing.T) {
 	}
 }
 
+func TestValueCallOneArg(t *testing.T) {
+	tree, err := parse(lex([]byte(`{% call foo .foo %}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree.context.funcs["foo"] = reflect.ValueOf(func(x string) string { return x })
+
+	var buf bytes.Buffer
+	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := buf.String(); got != "foo" {
+		t.Fatalf("Expected %q. Got %q", "foo", got)
+	}
+}
+
 func TestValueBadSelectors(t *testing.T) {
 	cases := []struct {
 		name string
