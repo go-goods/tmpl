@@ -364,10 +364,12 @@ func parseRange(p *parser) parseState {
 	//check for an as
 	if tok := p.next(); tok.typ == tokenAs {
 		//grab two idenitifers
-		if key = p.next(); key.typ != tokenIdent {
+		// #14 - Allow for anything, except tokenClose since the consumed token
+		// gets converted to a tokenIdent
+		if key = p.next(); key.typ == tokenClose {
 			return p.errExpect(tokenIdent, key)
 		}
-		if val = p.next(); val.typ != tokenIdent {
+		if val = p.next(); val.typ == tokenClose {
 			return p.errExpect(tokenIdent, val)
 		}
 	} else {
