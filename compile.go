@@ -350,7 +350,7 @@ func parseWith(p *parser) parseState {
 
 func parseRange(p *parser) parseState {
 	//grab the value type
-	ctx, st := consumeSelector(p)
+	ctx, st := consumeValue(p)
 	if st != nil {
 		return p.errorf(st.Error())
 	}

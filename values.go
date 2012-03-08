@@ -46,6 +46,14 @@ func isValueType(tok token) bool {
 	return false
 }
 
+func isBasicValueType(tok token) bool {
+	switch tok.typ {
+	case tokenStartSel, tokenValue, tokenNumeric:
+		return true
+	}
+	return false
+}
+
 func numericToValue(tok token) (v valueType, err error) {
 	if tok.typ != tokenNumeric {
 		return nil, fmt.Errorf("expected numeric got %q", tok)
@@ -227,9 +235,9 @@ func consumeCallValue(p *parser) (valueType, error) {
 	if name.typ != tokenIdent {
 		return nil, fmt.Errorf("Expected a %q got a %q", tokenIdent, name)
 	}
-	//grab values until p.peek() is a tokenClose
+	//grab values until p.peek() is something we don't want
 	values := []valueType{}
-	for p.peek().typ != tokenClose {
+	for isBasicValueType(p.peek()) {
 		//consume a basic value
 		val, err := consumeBasicValue(p)
 		if err != nil {

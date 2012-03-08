@@ -216,7 +216,7 @@ func (e *executeWith) String() string {
 // *****************
 
 type executeRange struct {
-	iter     *selectorValue
+	iter     valueType
 	ex       executer
 	key, val token
 }
