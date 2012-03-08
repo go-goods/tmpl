@@ -230,10 +230,19 @@ func (e *executeRange) Execute(w io.Writer, c *context) (err error) {
 	}
 
 	var kstr, vstr string
-	if s := string(e.key.dat); s != "" && s != "_" {
+	switch s := string(e.key.dat); s {
+	case "_": //ignored
+	case "":
+		kstr = c.stack.StringWith([]string{"key"})
+	default:
 		kstr = c.stack.StringWith([]string{s})
 	}
-	if s := string(e.val.dat); s != "" && s != "_" {
+
+	switch s := string(e.val.dat); s {
+	case "_":
+	case "":
+		vstr = c.stack.StringWith([]string{"val"})
+	default:
 		vstr = c.stack.StringWith([]string{s})
 	}
 
