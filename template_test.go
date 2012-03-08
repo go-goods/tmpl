@@ -2,6 +2,7 @@ package tmpl
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
 
@@ -160,6 +161,27 @@ func TestTemplateExecute(t *testing.T) {
 		}
 		if g := buf.String(); g != c.expect {
 			t.Errorf("%d\nGot %q\nExp %q", id, g, c.expect)
+		}
+	}
+}
+
+func TestTemplateExecuteFailures(t *testing.T) {
+	cases := []struct {
+		templ string
+		ctx   interface{}
+	}{
+		{`{% $.foo %}`, d{"foo": "bar"}},
+		{`{% with . %}{% $.foo %}{% end with %}`, d{"foo": "bar"}},
+		{`{% with .foo %}{% $$.foo %}{% end with %}`, d{"foo": "bar"}},
+	}
+	for id, c := range cases {
+		tree, err := parse(lex([]byte(c.templ)))
+		if err != nil {
+			// If this fires, move to TestLexExpectedFailures in lex_test.go
+			t.Errorf("%d: Lexer error: %v", id, err)
+		}
+		if err := tree.Execute(ioutil.Discard, c.ctx); err == nil {
+			t.Errorf("%d: Did not fail: %v", id, c.templ)
 		}
 	}
 }
