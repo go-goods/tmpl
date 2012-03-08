@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 )
 
@@ -206,8 +207,39 @@ type callValue struct {
 	args []valueType
 }
 
-func (s callValue) Value(c *context) (interface{}, error) {
-	return nil, nil
+func (s callValue) Value(c *context) (v interface{}, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("call %s: %v", s.name, e)
+		}
+	}()
+
+	fnc := c.getCall(string(s.name))
+	var (
+		params []reflect.Value
+		val    interface{}
+	)
+	for _, arg := range s.args {
+		val, err = arg.Value(c)
+		if err != nil {
+			return
+		}
+		params = append(params, reflect.ValueOf(val))
+	}
+
+	switch res := fnc.Call(params); len(res) {
+	case 0:
+	case 1:
+		v = res[0].Interface()
+	default:
+		var ret []interface{}
+		for _, item := range res {
+			ret = append(ret, item.Interface())
+		}
+		v = ret
+	}
+
+	return
 }
 
 func (s callValue) Execute(w io.Writer, c *context) (err error) {
