@@ -38,6 +38,7 @@ func TestLexExpected(t *testing.T) {
 		}
 		if len(c.ex) != len(toks) {
 			t.Errorf("%s: Expected %v got %v\n", c.name, c.ex, toks)
+			continue
 		}
 		for i, typ := range c.ex {
 			if toks[i] != typ {
@@ -54,6 +55,7 @@ func TestLexExpectedFailures(t *testing.T) {
 		{`{#}`},
 		{`{%}`},
 	}
+
 caseBlock:
 	for id, c := range cases {
 		for token := range lex([]byte(c.code)) {
