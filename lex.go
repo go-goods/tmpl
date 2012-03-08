@@ -287,6 +287,10 @@ func lexInsideDelims(l *lexer) lexerState {
 		//lex the inside tokens that dont change state
 		for _, delim := range insideDelims {
 			if bytes.HasPrefix(rest, delim.value) {
+				//if we have a keyword, check that the next letter
+				//either is a space or a %
+				
+				
 				l.pos += len(delim.value)
 				l.emit(delim.typ)
 				return lexInsideDelims
