@@ -163,54 +163,6 @@ the context.
 		{% end with %}
 	{% end with %}
 
-Command Examples
-
-Below you can find a simple example displaying how to use each command.
-
-	// defines a block named foo
-	{% block foo %}
-		This is a foo block!
-	{% end block %}
-
-	// runs the block named foo
-	{% evoke foo %}
-
-	// runs the block named foo at the path .bar
-	{% evoke foo .bar %}
-
-	// iterates over the value in .iterable printing key/value pairs
-	{% range .iterable %}
-		{% .key %}: {% .val %}
-	{% end range %}
-
-	// iterates over the value in .iterable printing just values
-	{% range .iterable as _ v %}
-		{% .v %}
-	{% end range %}
-
-	// prints the value in .foo
-	{% with .foo %}
-		{% . %}
-	{% end with %}
-
-	// prints if the value in .foo is "truthy"
-	{% if .foo %}
-		.foo is true!
-	{% else %}
-		.foo is false!
-	{% end if %}
-
-	// calls the function "foo" with a parameter as the value in .bar
-	// and displays the result
-	{% call foo .bar %}
-
-	// ranges over the value returned by the function call "foo"
-	// with a parameter as the value in .bar and displays the key/value pairs
-	// of the result.
-	{% range call foo .bar as k v %}
-		{% .k %}: {% .v %}
-	{% end range %}
-
 Modes
 
 Tmpl has two modes, Production and Development, which can be changed at any time
@@ -219,7 +171,7 @@ loaded from disk and compiled in Execute, so that the latest results are always
 used. In Production mode, files are only compiled the first time they are needed
 and the results are cached for subsequent access.
 
-Example
+Full Implementation Example
 
 The template, "base.tmpl", defined as,
 
