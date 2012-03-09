@@ -27,17 +27,6 @@ var code = []byte(`
 	{% with .ff %}{% . %}{% end with %}
 	{% range . as _ val %}{% with .val %}{% . %}{% end with %}{% end range %}`)
 
-func TestParseNestedBlocks(t *testing.T) {
-	_, err := parse(lex([]byte(`{% block foo %} foo {% block bar %} bar {% end block %} foo {% end block %}`)))
-	if err == nil {
-		t.Errorf("Expected error parsing nested blocks.")
-	}
-	_, err = parse(lex([]byte(`{%block foo%}{%with .%}{%block bar%}{%end block%}{%end with%}{%end block%}`)))
-	if err == nil {
-		t.Errorf("Expected error parsing nested blocks.")
-	}
-}
-
 func TestParseRedefineBlock(t *testing.T) {
 	_, err := parse(lex([]byte(`{% block foo %}{% end block %}{% block foo %}{% end block %}`)))
 	if err == nil {

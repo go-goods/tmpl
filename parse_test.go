@@ -34,6 +34,7 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% end range %}`},
 		{`{% end with %}`},
 		{`{% block foo %}{% block bar %}{% end block %}{% end block %}`},
+		{`{% block foo %}{% with . %}{% block bar %}{% end block %}{% end with %}{% end block %}`},
 	})
 }
 
