@@ -1,10 +1,10 @@
 /*
-Package tmpl provides a lazy compilation block based templating system.
+Package tmpl provides a lazy compilation block-based templating system.
 
-Tmpl is a simple block based templating system. What does block based mean? When
-doing web design typically one thinks of "blocks" of content: a
-navigation bar, the main content section of the page, or the header section of
-the page. Blocks are "evoked" by a main template, and defined in supporting files.
+When performing web development, page content and markup are easily visualized
+in "blocks." These blocks may include: the header, navigation, main content, or
+supporting content. Tmpl provides simple block-based templating system to
+accommodate the needs of web development.
 
 Example
 
