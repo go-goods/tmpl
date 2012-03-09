@@ -44,8 +44,43 @@ then the following selectors will all produce "bif" within "myBlock":
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
+Statements
 
-Commands
+{% [/][$[$[...]]].[Selector[.Selector[...]]] %} - Selects a value from a context
+or sub-context. Selector syntax traverses contexts in a manner similar to a
+directory structure:
+
+	* Leading forward slash (/) starts selection from the main context
+	* Dollar sign ($) traverses up the context tree
+	* Multiple dollar signs ($$) continue to traverse up the context tree
+	* Dot (.) references "this" value, whether in a main- or sub-context
+	* Selectors are attribute names which come after dots (.MyValue)
+	* Multiple selectors are separated by dots (.MyStruct.MySubStruct.MyValue)
+
+{% block myName %} - Defines a block with the name, myName. Block definitions
+must end with an {% end block %} statement.
+
+{% evoke myName [context] %} - Substitutes this statement with the contents of
+the block, myBlock. The optional context argument pushes a sub-context into the
+block.
+
+{% range .Selector [as keyName valueName]} - Iterates over the value in
+.Selector. If "as keyName valueName" are present, the selectors ".keyName" and
+".valueName" are available within the range block. Otherwise, the selectors
+".key" and ".val" become available. Similar to the Go built-in range, "_" is a
+valid name for either the key or value. Range definitions must end with an
+{% end range %} statement. The types which range will iterate are:
+
+	* map
+	* slice
+	* struct
+
+{% range call someFunc [as keyName valueName] %} - Similar to ranging over a
+selector, but first calls the function by the name, someFunc. All other aspects
+of operation are identical to the above selector range.
+
+
+
 
 Tmpl comes with many commands to help with creating dynamic output easily. We
 have already seen blocks, evoke, and range. There are also the commands with,
