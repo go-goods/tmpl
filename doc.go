@@ -50,12 +50,17 @@ Statements
 or sub-context. Selector syntax traverses contexts in a manner similar to a
 directory structure:
 
-	* Leading forward slash (/) starts selection from the main context
-	* Dollar sign ($) traverses up the context tree
-	* Multiple dollar signs ($$) continue to traverse up the context tree
-	* Dot (.) references "this" value, whether in a main- or sub-context
-	* Selectors are attribute names which come after dots (.MyValue)
-	* Multiple selectors are separated by dots (.MyStruct.MySubStruct.MyValue)
+- Leading forward slash (/) starts selection from the main context
+
+- Dollar sign ($) traverses up the context tree
+
+- Multiple dollar signs ($$) continue to traverse up the context tree
+
+- Dot (.) references "this" value, whether in a main- or sub-context
+
+- Selectors are attribute names which come after dots (.MyValue)
+
+- Multiple selectors are separated by dots (.MyStruct.MySubStruct.MyValue)
 
 {% block myName %} - Defines a block with the name, myName. Block definitions
 must end with an {% end block %} statement.
@@ -69,11 +74,8 @@ block.
 ".valueName" are available within the range block. Otherwise, the selectors
 ".key" and ".val" become available. Similar to the Go built-in range, "_" is a
 valid name for either the key or value. Range definitions must end with an
-{% end range %} statement. The types which range will iterate are:
-
-	* map
-	* slice
-	* struct
+{% end range %} statement. The types which range will iterate are: map, slice,
+struct
 
 {% range call someFunc [as keyName valueName] %} - Similar to ranging over a
 selector, but first calls the function by the name, someFunc. All other aspects
