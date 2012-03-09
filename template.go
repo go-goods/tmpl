@@ -68,7 +68,8 @@ type funcDecl struct {
 	val  reflect.Value
 }
 
-//Template is the type that represents a template.
+//Template is the type that represents a template. It is created by using the
+//Parse function and dependencies are attached through Blocks and Call.
 type Template struct {
 	//base and globs represent work to be done
 	base      string
