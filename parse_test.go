@@ -62,6 +62,19 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% block foo %}{% block bar %}{% end block %}{% end block %}`},
 		{`{% block foo %}{% with . %}{% block bar %}{% end block %}{% end with %}{% end block %}`},
 		{`{% block foo %}{% end block %}{% block foo %}{% end block %}`},
+
+		//cant evoke or with on things other than selectors
+		{`{% evoke foo call foo %}`},
+		{`{% with call foo %}`},
+
+		//unknown keyword
+		{`{% flabdab %}`},
+		{`{% range foo flabdab %}{% end range %}`},
+		{`{% block foo flabdab %}{% end block %}`},
+		{`{% call foo flabdab %}`},
+		{`{% if .foo flabdab %}{% end if %}`},
+		{`{% with .foo flabdab %}{% end with %}`},
+		{`{% if .foo %}{% else flabdab %}{% end if %}`},
 	})
 }
 
@@ -69,6 +82,29 @@ func TestParseExpectedPasses(t *testing.T) {
 	executeParsePasses(t, []parseTestCase{
 		{`{% range call foo as _ foo %}{% end range %}`},
 		{testLongTemplate},
+		{``},
+		{`{% if . %}{% else %}{% end if %}`},
+		{`{% if . %}{% end if %}`},
+		{`{% if call foo %}{% end if %}`},
+		{`{% if call foo %}{% else %}{% end if %}`},
+		{`{% block foo %}{% end block %}`},
+		{`{% block foo %}{% with . %}{% end with %}{% end block %}`},
+		{`{% with .foo %}{% end with %}`},
+		{`{% with /. %}{% end with %}`},
+		{`{% evoke foo %}`},
+		{`{% evoke foo . %}`},
+		{`{% evoke foo /. %}`},
+		{`{% range . %}{% end range %}`},
+		{`{% range . as _ _ %}{% end range %}`},
+		{`{% range . as k v %}{% end range %}`},
+		{`{% range . as _ v %}{% end range %}`},
+		{`{% range . as k _ %}{% end range %}`},
+		{`{% . %}`},
+		{`{% /. %}`},
+		{`{% /.foo %}`},
+		{`{% $.foo %}`},
+		{`{% call foo %}`},
+		{`{% call foo /. %}`},
 	})
 }
 

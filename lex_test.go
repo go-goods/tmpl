@@ -54,6 +54,7 @@ func TestLexExpectedFailures(t *testing.T) {
 	}{
 		{`{#}`},
 		{`{%}`},
+		{`{% {# #} . %}`},
 	}
 
 caseBlock:
