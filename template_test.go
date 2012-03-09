@@ -25,7 +25,6 @@ func (s *s) String() string {
 
 func TestTemplatePassBlocks(t *testing.T) {
 	executeTemplatePasses(t, []templatePassCase{
-
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
