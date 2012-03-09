@@ -100,10 +100,6 @@ func (c *context) restore() {
 	}
 }
 
-func (c *context) clear() {
-	c.blocks = map[string]*executeBlockValue{}
-}
-
 func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
 	var pth path
 	switch {

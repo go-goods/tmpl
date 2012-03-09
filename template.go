@@ -59,7 +59,8 @@ var cache = map[string]*parseTree{}
 
 func newTemplate(file string) *Template {
 	return &Template{
-		base: file,
+		base:  file,
+		dirty: true,
 	}
 }
 
@@ -72,12 +73,12 @@ type funcDecl struct {
 //Parse function and dependencies are attached through Blocks and Call.
 type Template struct {
 	//base and globs represent work to be done
-	base      string
-	globs     []string
-	tempglobs []string
-	funcs     []funcDecl
+	base  string
+	globs []string
+	funcs []funcDecl
+	dirty bool
 
-	compileLk sync.Mutex
+	compileLk sync.RWMutex
 
 	//our parse tree
 	tree *parseTree
@@ -88,6 +89,7 @@ type Template struct {
 //evoke them.
 func (t *Template) Blocks(globs ...string) *Template {
 	t.globs = append(t.globs, globs...)
+	t.dirty = true
 	return t
 }
 
@@ -100,29 +102,21 @@ func (t *Template) Call(name string, fnc interface{}) *Template {
 		panic(fmt.Errorf("%q is not a function.", fnc))
 	}
 	t.funcs = append(t.funcs, funcDecl{name, rv})
+	t.dirty = true
 	return t
 }
 
 func (t *Template) compile(mode Mode) (err error) {
-	//figure out what work needs to be done
-	if t.tree == nil || mode == Development {
-		err = t.updateBase(mode)
-		if err != nil {
-			return
-		}
+	if err = t.updateBase(mode); err != nil {
+		return
 	}
-	if len(t.globs) > 0 {
-		err = t.updateGlobs(t.globs, mode)
-		if err != nil {
-			return
-		}
+	if err = t.updateGlobs(t.globs, mode); err != nil {
+		return
 	}
-	if len(t.funcs) > 0 {
-		for _, decl := range t.funcs {
-			t.tree.context.funcs[decl.name] = decl.val
-		}
-		t.funcs = nil
+	for _, decl := range t.funcs {
+		t.tree.context.funcs[decl.name] = decl.val
 	}
+	t.dirty = false
 	return
 }
 
@@ -225,26 +219,51 @@ func (t *Template) updateBlocks(file string, blocks map[string]*executeBlockValu
 //(see the discussion on Modes) or during the execution of the template are
 //returned.
 func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err error) {
-	t.compileLk.Lock()
-
 	mode := <-modeChan
-	if mode == Development || t.tree == nil {
-		if t.tree != nil {
-			t.tree.context.clear()
-		}
-		t.compile(mode)
-	}
+	if mode == Development || t.dirty {
+		//grab the compile lock
+		t.compileLk.Lock()
 
-	t.tree.context.dup()
-	defer t.tree.context.restore()
-	if len(globs) > 0 {
-		if err = t.updateGlobs(globs, mode); err != nil {
+		//unset the tree and compile it
+		t.tree = nil
+		if err = t.compile(mode); err != nil {
+			t.compileLk.Unlock()
 			return
 		}
+		t.tree.context.dup()
+
+		//if we have temp things
+		if len(globs) > 0 {
+			//set up a restore
+			defer t.tree.context.restore()
+			//load them in
+			if err = t.updateGlobs(globs, mode); err != nil {
+				t.compileLk.Unlock()
+				return
+			}
+		}
+		//done compiling!
+		t.compileLk.Unlock()
+	} else {
+		//we arent dirty or in dev mode, but we could have temp globs
+		if len(globs) > 0 {
+			//so grab the compile lock
+			t.compileLk.Lock()
+			//set up a restore
+			defer t.tree.context.restore()
+			//load them in
+			if err = t.updateGlobs(globs, mode); err != nil {
+				t.compileLk.Unlock()
+				return
+			}
+			//done compiling!
+			t.compileLk.Unlock()
+		}
 	}
-	t.compileLk.Unlock()
 
 	//execute!
+	t.compileLk.RLock()
+	defer t.compileLk.RUnlock()
 	return t.tree.Execute(w, ctx)
 }
 
