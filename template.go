@@ -22,8 +22,8 @@ func (m Mode) String() string {
 }
 
 const (
-	Development Mode = false
-	Production  Mode = true
+	Development Mode = true
+	Production  Mode = false
 )
 
 var (
@@ -50,7 +50,7 @@ func modeSpitter() {
 //templates read in and compile each file it needs to execute every time it needs
 //to execute, always getting the most recent changes. In Production mode, templates
 //read and compile each file they need only the first time, caching the results
-//for subsequent Execute calls. By default, the package is in Development mode.
+//for subsequent Execute calls. By default, the package is in Production mode.
 func CompileMode(mode Mode) {
 	modeChange <- mode
 }
@@ -103,20 +103,12 @@ func (t *Template) Call(name string, fnc interface{}) *Template {
 	return t
 }
 
-func (t *Template) compile() (err error) {
-	//must protect against multiple compiles happening at once
-	t.compileLk.Lock()
-	defer t.compileLk.Unlock()
-
-	mode := <-modeChan
+func (t *Template) compile(mode Mode) (err error) {
 	//figure out what work needs to be done
-	if t.base != "" {
+	if t.tree == nil || mode == Development {
 		err = t.updateBase(mode)
 		if err != nil {
 			return
-		}
-		if mode == Production {
-			t.base = ""
 		}
 	}
 	if len(t.globs) > 0 {
@@ -124,16 +116,6 @@ func (t *Template) compile() (err error) {
 		if err != nil {
 			return
 		}
-		if mode == Production {
-			t.globs = nil
-		}
-	}
-	if len(t.tempglobs) > 0 {
-		err = t.updateGlobs(t.tempglobs, mode)
-		if err != nil {
-			return
-		}
-		t.tempglobs = nil
 	}
 	if len(t.funcs) > 0 {
 		for _, decl := range t.funcs {
@@ -243,17 +225,24 @@ func (t *Template) updateBlocks(file string, blocks map[string]*executeBlockValu
 //(see the discussion on Modes) or during the execution of the template are
 //returned.
 func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err error) {
-	//backup the context
+	t.compileLk.Lock()
+
+	mode := <-modeChan
+	if mode == Development || t.tree == nil {
+		if t.tree != nil {
+			t.tree.context.clear()
+		}
+		t.compile(mode)
+	}
+
 	t.tree.context.dup()
 	defer t.tree.context.restore()
-
-	//add in our temporary blocks
-	t.tempglobs = globs
-
-	err = t.compile()
-	if err != nil {
-		return
+	if len(globs) > 0 {
+		if err = t.updateGlobs(globs, mode); err != nil {
+			return
+		}
 	}
+	t.compileLk.Unlock()
 
 	//execute!
 	return t.tree.Execute(w, ctx)
