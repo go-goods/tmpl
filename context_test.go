@@ -1,9 +1,6 @@
 package tmpl
 
-import (
-	"bytes"
-	"testing"
-)
+import "testing"
 
 type d map[string]interface{}
 
