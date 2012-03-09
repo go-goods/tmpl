@@ -1,10 +1,6 @@
 package tmpl
 
-import (
-	"bytes"
-	"io/ioutil"
-	"testing"
-)
+import "testing"
 
 func TestExecuteListString(t *testing.T) {
 	l := executeList{
@@ -15,70 +11,6 @@ func TestExecuteListString(t *testing.T) {
 	l.Push(nil)
 	if l.String() != "[list\n\tnil\n\t[list\n\t\tnil\n\t\tnil\n\t\tnil\n\t]\n\tnil\n\tnil\n]" {
 		t.Error("didn't nest right")
-	}
-}
-
-func TestExecuteNoContext(t *testing.T) {
-	cases := []struct {
-		templ  string
-		expect string
-	}{
-		{`this is just a literal`, `this is just a literal`},
-		{`{% block foo %}test{% end block %}{% evoke foo %}`, `test`},
-		{`{# foo #}test`, `test`},
-		{`{# foo #}test{# bar baz #}`, `test`},
-	}
-	for _, c := range cases {
-		tree, err := parse(lex([]byte(c.templ)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var buf bytes.Buffer
-		if err := tree.Execute(&buf, nil); err != nil {
-			t.Fatal(err)
-		}
-		if g := buf.String(); g != c.expect {
-			t.Fatalf("\nGot %q\nExp %q", g, c.expect)
-		}
-	}
-}
-
-func TestExecuteSimpleBlock(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% block foo %}{% . %}{% end block %}{% evoke foo .foo %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
-		t.Fatal(err)
-	}
-	if g := buf.String(); g != "foo" {
-		t.Fatalf("\nGot %q\nExp %q", g, "foo")
-	}
-}
-
-func TestExecuteSimpleWith(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% with .foo %}{% . %}{% end with %}{% .foo %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	if err := tree.Execute(&buf, d{"foo": "foo"}); err != nil {
-		t.Fatal(err)
-	}
-	if g := buf.String(); g != "foofoo" {
-		t.Fatalf("\nGot %q\nExp %q", g, "foofoo")
-	}
-}
-
-func TestExecuteEvokeNoBlock(t *testing.T) {
-	tree, err := parse(lex([]byte(`{% evoke foo %}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := tree.Execute(ioutil.Discard, nil); err == nil {
-		t.Fatal("Expected error evoking a block with no definition")
 	}
 }
 
