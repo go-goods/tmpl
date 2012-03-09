@@ -6,12 +6,20 @@ in "blocks." These blocks may include: the header, navigation, main content, or
 supporting content. Tmpl provides simple block-based templating system to
 accommodate the needs of web development.
 
+Statements
+
+Template statements are surrounded by the tokens '{%' and '%}' and contain text
+to specify the action the template system should take. All actions begin with
+a keyword like "block" or "evoke", except in the case of printing a value from
+a context, where just the selector is specified.
+
 Contexts
 
-Contexts are the origin from which all values referenced in a block are
-utilized. The main context is passed in when calling Execute to render the
-final HTML. From there, sub-contexts are derived by passing into blocks, using
-"evoke" or "with".
+Contexts are the origin for all of the values a template has access to. The main
+context is passed in when calling Execute to render the final output. From there, 
+sub-contexts are derived by passing into blocks, using "evoke" or "with".
+
+Statement - Selector
 
 Values from contexts and sub-contexts are available through the use of
 selectors. Selectors always begin with a dot (.), followed by the attribute
@@ -33,11 +41,8 @@ Given the following main context, represented in JSON format,
 		}
 	}
 
-if a block is evoked in the following manner,
-
-	{% evoke myBlock .foo.bar.baz %}
-
-then the following selectors will all produce "bif" within "myBlock":
+and assuming the statements are being executed in a sub-context rooted at the
+"baz" element, then the following selectors will all produce "bif":
 
 	{% . %}
 	{% $.baz %}
@@ -45,30 +50,27 @@ then the following selectors will all produce "bif" within "myBlock":
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
-Statement - Selector
+Statement - Call
 
-Selects a value from a context or sub-context. Selector syntax traverses
-contexts in a manner similar to a directory structure:
+Call runs a function that is attached to the template before it is Executed with
+the supplied arguments. For example if we had a function named "foo" that was
+attached to the template, the action
 
-- Leading forward slash (/) starts selection from the main context
+	{% call foo .Bar .Baz %}
 
-- Dollar sign ($) traverses up the context tree
+corresponds to the function call
 
-- Multiple dollar signs ($$) continue to traverse up the context tree
+	foo(.Bar, .Baz)
 
-- Dot (.) references "this" value, whether in a main- or sub-context
+with the selectors .Bar and .Baz evaluated. See Template.Call for details on
+how to attach a function.
 
-- Selectors are attribute names which come after dots (.MyValue)
+	{% call name [args...] %}
 
-- Multiple selectors are separated by dots (.MyStruct.MySubStruct.MyValue)
-
-	{% [/][$[$[...]]].[Selector[.Selector[...]]] %}
-
-	{% . %}
-	{% $.baz %}
-	{% $$.bar.baz %}
-	{% $$$.foo.bar.baz %}
-	{% /.foo.bar.baz %}
+	{% call titleCase .Title %}
+	{% call add .FirstNumber .SecondNumber %}
+	{% call not .Value %}
+	{% call equal .FirstName .OtherUser %}
 
 Statement - Block
 
@@ -92,14 +94,15 @@ optional context argument pushes a sub-context into the block.
 
 Statement - Range
 
-Iterates over the value in .Selector. If "as keyName valueName" are present,
+Iterates over the given value. A value can be either the result of a .Selector
+or the result of a call statement. If "as keyName valueName" are present,
 the selectors ".keyName" and ".valueName" are available within the range block.
 Otherwise, the selectors ".key" and ".val" become available. Similar to the Go
 built-in range, "_" is a valid name for either the key or value. Range
 definitions must end with an {% end range %} statement. The types which range
 will iterate are: map, slice, struct
 
-	{% range .Selector [as keyName valueName]}...{% end range %}
+	{% range value [as keyName valueName]}...{% end range %}
 
 	{% range .LoggedInUser.Friends %}
 		{% evoke fullName .val %}
@@ -108,12 +111,6 @@ will iterate are: map, slice, struct
 	{% range .LoggedInUser.Friends as _ friend %}
 		{% evoke fullName .friend %}
 	{% end range %}
-
-Statement - Range Call
-
-Similar to ranging over a selector, but first calls the function by the name,
-someFunc. All other aspects of operation are identical to the above selector
-range.
 
 	{% range call someFunc [as keyName valueName] %}...{% end range %}
 
@@ -125,17 +122,46 @@ range.
 		{% evoke fullName .user %}
 	{% end range %}
 
+Statement - If
 
-Tmpl comes with many commands to help with creating dynamic output easily. We
-have already seen blocks, evoke, and range. There are also the commands with,
-if, and call.
+Evaluates the specified value which may be either a .Selector or the result of
+a call statement. If the value is "truthy" it executes the postive template,
+otherwise, it executes the negative template if given.
 
-	* Block defines a named block to be inserted by an evoke
-	* Evoke calls a named block with an optional context path for it to operate on
-	* Range iterates over things like maps/slices/structs setting key/value pairs on the current context path.
-	* With temporarily sets the current level of the context path
-	* If evaluates the given value and runs one of two outcomes
-	* Call runs a user supplied function with the specified arguments
+	{% if value %}...[{% else %}...]{% end if %}
+
+	{% if .LoggedIn %}
+		Positive: {% evoke fullName .LoggedInUser %} is logged in!
+	{% end if %}
+
+	{% if .LoggedIn %}
+		Yep!
+	{% else %}
+		Negative: No one is logged in.
+	{% end if %}
+
+Statement - With
+
+With takes the specified selector and roots a sub-context at that position in
+the context.
+
+	{% with .Selector %}...{% end with %}
+
+	{% with .LoggedInUser %}
+		Hello {% .FristName %},
+		How are you Ms. {% .LastName %}
+	{% end with %}
+
+	{% with /. %}
+		Now we're rooted back at the top level no matter what!
+	{% end with %}
+
+	{% with .LoggedInUser %}
+		{% with .FirstName %}
+			Hello {% . %},
+			How are you Ms. {% $.LastName %}
+		{% end with %}
+	{% end with %}
 
 Command Examples
 
@@ -192,6 +218,7 @@ with the CompileMode function. In Development mode, every block and template is
 loaded from disk and compiled in Execute, so that the latest results are always
 used. In Production mode, files are only compiled the first time they are needed
 and the results are cached for subsequent access.
+
 Example
 
 The template, "base.tmpl", defined as,
