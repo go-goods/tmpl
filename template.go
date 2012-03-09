@@ -5,6 +5,8 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
+	"sync"
 )
 
 type Mode bool
@@ -53,11 +55,19 @@ func newTemplate(file string) *Template {
 	}
 }
 
+type funcDecl struct {
+	name string
+	val  reflect.Value
+}
+
 type Template struct {
 	//base and globs represent work to be done
 	base      string
 	globs     []string
 	tempglobs []string
+	funcs     []funcDecl
+
+	compileLk sync.Mutex
 
 	//our parse tree
 	tree *parseTree
@@ -68,7 +78,20 @@ func (t *Template) Blocks(globs ...string) *Template {
 	return t
 }
 
+func (t *Template) Call(name string, fnc interface{}) *Template {
+	rv := reflect.ValueOf(fnc)
+	if rv.Kind() != reflect.Func {
+		panic(fmt.Errorf("%q is not a function.", fnc))
+	}
+	t.funcs = append(t.funcs, funcDecl{name, rv})
+	return t
+}
+
 func (t *Template) compile() (err error) {
+	//must protect against multiple compiles happening at once
+	t.compileLk.Lock()
+	defer t.compileLk.Unlock()
+
 	mode := <-modeChan
 	//figure out what work needs to be done
 	if t.base != "" {
@@ -95,6 +118,12 @@ func (t *Template) compile() (err error) {
 			return
 		}
 		t.tempglobs = nil
+	}
+	if len(t.funcs) > 0 {
+		for _, decl := range t.funcs {
+			t.tree.context.funcs[decl.name] = decl.val
+		}
+		t.funcs = nil
 	}
 	return
 }
