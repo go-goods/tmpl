@@ -2,13 +2,13 @@
 Package tmpl provides a lazy compilation block based templating system.
 
 Tmpl is a simple block based templating system. What does block based mean? When
-doing web design typically one thinks of "blocks" of content, for example in a
+doing web design typically one thinks of "blocks" of content: a
 navigation bar, the main content section of the page, or the header section of
 the page. Blocks are "evoked" by a main template, and defined in supporting files.
 
 Example
 
-One could have the template defined in "base.tmpl"
+The template, "base.tmpl", defined as,
 
 	//file: base.tmpl
 	<html>
@@ -42,7 +42,7 @@ with the set of blocks,
 	Some foofy content with a {% .User.Name %}
 	{% end block %}
 
-One could then load an execute this template by
+implementation with tmpl,
 
 	t := tmpl.Parse("base.tmpl")
 	t.Blocks("footer.block")
@@ -51,11 +51,7 @@ One could then load an execute this template by
 		//handle err
 	}
 
-This requests that the "footer.block" file be compiled in for every Execute,
-while the "meta.block" and "content.block" files are compiled in for that
-specific execute. The block defintions are inserted into the evoke locations
-with the current context passed in, or whatever is specified by the evoke. Thus
-for some context represented in json as
+and context, represented here as JSON,
 
 	{
 		"Meta": {
@@ -68,7 +64,7 @@ for some context represented in json as
 		}
 	}
 
-we would expect the output (with some whitespace difference)
+would lead to the following output (with some whitespace difference):
 
 	<html>
 	<head>
@@ -82,6 +78,11 @@ we would expect the output (with some whitespace difference)
 		We're a footer!
 	</body>
 	</html>
+
+This requests that the "footer.block" file be compiled in for every Execute,
+while the "meta.block" and "content.block" files are compiled in for that
+specific execute. The block defintions are inserted into the evoke locations
+with the current context passed in, or whatever is specified by the evoke.
 
 Discussion
 
