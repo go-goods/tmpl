@@ -6,83 +6,6 @@ in "blocks." These blocks may include: the header, navigation, main content, or
 supporting content. Tmpl provides simple block-based templating system to
 accommodate the needs of web development.
 
-Example
-
-The template, "base.tmpl", defined as,
-
-	//file: base.tmpl
-	<html>
-	<head>
-		<title>{% .Title %}</title>
-		{% evoke meta .Meta %}
-	</head>
-	<body>
-		{% evoke content %}
-		<hr>
-		{% evoke footer %}
-	</body>
-	</html>
-
-with the set of blocks,
-
-	//file: footer.block
-	{% block footer %}
-	We're a footer!
-	{% end block %}
-
-	//file: meta.block
-	{% block meta %}
-		{% range .Javascripts as _ src %}
-			<script src="{% .src %}"></script>
-		{% end range %}
-	{% end block %}
-
-	//file: content.block
-	{% block content %}
-	Some foofy content with a {% .User.Name %}
-	{% end block %}
-
-implementation with tmpl,
-
-	t := tmpl.Parse("base.tmpl")
-	t.Blocks("footer.block")
-	context := RequestContext(r)
-	if err := t.Execute(w, context, "meta.block", "content.block"); err != nil {
-		//handle err
-	}
-
-and context, represented here as JSON,
-
-	{
-		"Meta": {
-			"Javascripts": ["one.js", "two.js"]
-		},
-		"Title": "templates!",
-		"User": {
-			"Name": "zeebo",
-			"Location": "USA"
-		}
-	}
-
-would lead to the following output (with some whitespace difference):
-
-	<html>
-	<head>
-		<title>templates!</title>
-		<script src="one.js"></script>
-		<script src="two.js"></script>
-	</head>
-	<body>
-		Some foofy content with a zeebo
-		<hr>
-		We're a footer!
-	</body>
-	</html>
-
-This requests that the "footer.block" file be compiled in for every Execute,
-while the "meta.block" and "content.block" files are compiled in for that
-specific execute. The block defintions are inserted into the evoke locations
-with the current context passed in, or whatever is specified by the evoke.
 
 Discussion
 
@@ -189,5 +112,82 @@ with the CompileMode function. In Development mode, every block and template is
 loaded from disk and compiled in Execute, so that the latest results are always
 used. In Production mode, files are only compiled the first time they are needed
 and the results are cached for subsequent access.
+Example
+
+The template, "base.tmpl", defined as,
+
+	//file: base.tmpl
+	<html>
+	<head>
+		<title>{% .Title %}</title>
+		{% evoke meta .Meta %}
+	</head>
+	<body>
+		{% evoke content %}
+		<hr>
+		{% evoke footer %}
+	</body>
+	</html>
+
+with the set of blocks,
+
+	//file: footer.block
+	{% block footer %}
+	We're a footer!
+	{% end block %}
+
+	//file: meta.block
+	{% block meta %}
+		{% range .Javascripts as _ src %}
+			<script src="{% .src %}"></script>
+		{% end range %}
+	{% end block %}
+
+	//file: content.block
+	{% block content %}
+	Some foofy content with a {% .User.Name %}
+	{% end block %}
+
+implementation with tmpl,
+
+	t := tmpl.Parse("base.tmpl")
+	t.Blocks("footer.block")
+	context := RequestContext(r)
+	if err := t.Execute(w, context, "meta.block", "content.block"); err != nil {
+		//handle err
+	}
+
+and context, represented here as JSON,
+
+	{
+		"Meta": {
+			"Javascripts": ["one.js", "two.js"]
+		},
+		"Title": "templates!",
+		"User": {
+			"Name": "zeebo",
+			"Location": "USA"
+		}
+	}
+
+would lead to the following output (with some whitespace difference):
+
+	<html>
+	<head>
+		<title>templates!</title>
+		<script src="one.js"></script>
+		<script src="two.js"></script>
+	</head>
+	<body>
+		Some foofy content with a zeebo
+		<hr>
+		We're a footer!
+	</body>
+	</html>
+
+This requests that the "footer.block" file be compiled in for every Execute,
+while the "meta.block" and "content.block" files are compiled in for that
+specific execute. The block defintions are inserted into the evoke locations
+with the current context passed in, or whatever is specified by the evoke.
 */
 package tmpl
