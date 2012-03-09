@@ -23,6 +23,15 @@ func (s *s) String() string {
 	return "foo"
 }
 
+func TestTemplateNoContext(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		{`this is just a literal`, nil, `this is just a literal`},
+		{`{% block foo %}test{% end block %}{% evoke foo %}`, nil, `test`},
+		{`{# foo #}test`, nil, `test`},
+		{`{# foo #}test{# bar baz #}`, nil, `test`},
+	})
+}
+
 func TestTemplatePassBlocks(t *testing.T) {
 	executeTemplatePasses(t, []templatePassCase{
 		{`{% block foo %}{% end block %}`, nil, ``},
@@ -36,6 +45,12 @@ func TestTemplatePassBlocks(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
+	})
+}
+
+func TestTemplateFailEvoke(t *testing.T) {
+	executeTemplateFails(t, []templateFailCase{
+		{`{% evoke foo %}`, nil},
 	})
 }
 
