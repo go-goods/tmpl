@@ -9,12 +9,16 @@ import (
 	"testing"
 )
 
+type fataler interface {
+	Fatal(...interface{})
+}
+
 type templateFile struct {
 	name     string
 	contents string
 }
 
-func createTestDir(t *testing.T, files []templateFile) string {
+func createTestDir(t fataler, files []templateFile) string {
 	dir, err := ioutil.TempDir("", "template")
 	if err != nil {
 		t.Fatal(err)
