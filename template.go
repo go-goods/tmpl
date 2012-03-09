@@ -213,51 +213,59 @@ func (t *Template) updateBlocks(file string, blocks map[string]*executeBlockValu
 	return
 }
 
+func (t *Template) runCompilation(globs []string, mode Mode) (err error) {
+	//grab the compile lock
+	t.compileLk.Lock()
+	defer t.compileLk.Unlock()
+
+	//unset the tree and compile it
+	t.tree = nil
+	if err = t.compile(mode); err != nil {
+		return
+	}
+	t.tree.context.dup()
+
+	err = t.updateGlobs(globs, mode)
+	return
+}
+
+func (t *Template) lockedUpdateGlobs(globs []string, mode Mode) (err error) {
+	//grab the compile lock
+	t.compileLk.Lock()
+	defer t.compileLk.Unlock()
+
+	//load them in
+	err = t.updateGlobs(globs, mode)
+	return
+}
+
 //Execute runs the template with the specified context attaching all the block
 //definitions in the files that match the given globs sending the output to
 //w. Any errors during the compilation of any files that have to be compiled
 //(see the discussion on Modes) or during the execution of the template are
 //returned.
 func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err error) {
+	//grab the mode for this execute
 	mode := <-modeChan
-	if mode == Development || t.dirty {
-		//grab the compile lock
-		t.compileLk.Lock()
 
-		//unset the tree and compile it
-		t.tree = nil
-		if err = t.compile(mode); err != nil {
-			t.compileLk.Unlock()
+	//if we're in dev or its dirty we need to fully recompile
+	if mode == Development || t.dirty {
+		//run the compilation
+		if err = t.runCompilation(globs, mode); err != nil {
 			return
 		}
-		t.tree.context.dup()
-
-		//if we have temp things
+		//if we had globs we have to do a restore
 		if len(globs) > 0 {
-			//set up a restore
 			defer t.tree.context.restore()
-			//load them in
-			if err = t.updateGlobs(globs, mode); err != nil {
-				t.compileLk.Unlock()
-				return
-			}
 		}
-		//done compiling!
-		t.compileLk.Unlock()
-	} else {
-		//we arent dirty or in dev mode, but we could have temp globs
-		if len(globs) > 0 {
-			//so grab the compile lock
-			t.compileLk.Lock()
-			//set up a restore
-			defer t.tree.context.restore()
-			//load them in
-			if err = t.updateGlobs(globs, mode); err != nil {
-				t.compileLk.Unlock()
-				return
-			}
-			//done compiling!
-			t.compileLk.Unlock()
+	} else if len(globs) > 0 {
+		//it wasn't dirty or in development, but we have globs so set up
+		//a restore
+		defer t.tree.context.restore()
+
+		//and compile them in
+		if err = t.lockedUpdateGlobs(globs, mode); err != nil {
+			return
 		}
 	}
 
