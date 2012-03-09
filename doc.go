@@ -5,7 +5,10 @@ Tmpl is a simple block based templating system. What does block based mean? When
 doing web design typically one thinks of "blocks" of content, for example in a
 navigation bar, the main content section of the page, or the header section of
 the page. Blocks are "evoked" by a main template, and defined in supporting files.
-For example, we could have the template defined in "base.tmpl"
+
+Example
+
+One could have the template defined in "base.tmpl"
 
 	//file: base.tmpl
 	<html>
@@ -39,7 +42,7 @@ with the set of blocks,
 	Some foofy content with a {% .User.Name %}
 	{% end block %}
 
-we could load an execute this template by
+One could then load an execute this template by
 
 	t := tmpl.Parse("base.tmpl")
 	t.Blocks("footer.block")
@@ -80,6 +83,8 @@ we would expect the output (with some whitespace difference)
 	</body>
 	</html>
 
+Discussion
+
 Let's break this example down. First we'll start with the idea of a "context".
 A template is passed in a value called the "context" in the Execute call. Values
 from the context can be accessed by using "selectors". For example in the 
@@ -115,17 +120,68 @@ of the page inside of the meta block, we could use {% $.Title %}. A good metapho
 to use for contexts is to think of them like a directory path, with a current
 working directory.
 
+Commands
+
 Tmpl comes with many commands to help with creating dynamic output easily. We
 have already seen blocks, evoke, and range. There are also the commands with,
 if, and call.
 
-* Block defines a named block to be inserted by an evoke
-* Evoke calls a named block with an optional context path for it to operate on
-* Range iterates over things like maps/slices/structs setting key/value pairs
-  on the current context path.
-* With temporarily sets the current level of the context path
-* If evaluates the given value and runs one of two outcomes
-* Call runs a user supplied function with the specified arguments
+	* Block defines a named block to be inserted by an evoke
+	* Evoke calls a named block with an optional context path for it to operate on
+	* Range iterates over things like maps/slices/structs setting key/value pairs on the current context path.
+	* With temporarily sets the current level of the context path
+	* If evaluates the given value and runs one of two outcomes
+	* Call runs a user supplied function with the specified arguments
+
+Command Examples
+
+Below you can find a simple example displaying how to use each command.
+
+	// defines a block named foo
+	{% block foo %}
+		This is a foo block!
+	{% end block %}
+
+	// runs the block named foo
+	{% evoke foo %}
+
+	// runs the block named foo at the path .bar
+	{% evoke foo .bar %}
+
+	// iterates over the value in .iterable printing key/value pairs
+	{% range .iterable %}
+		{% .key %}: {% .val %}
+	{% end range %}
+
+	// iterates over the value in .iterable printing just values
+	{% range .iterable as _ v %}
+		{% .v %}
+	{% end range %}
+
+	// prints the value in .foo
+	{% with .foo %}
+		{% . %}
+	{% end with %}
+
+	// prints if the value in .foo is "truthy"
+	{% if .foo %}
+		.foo is true!
+	{% else %}
+		.foo is false!
+	{% end if %}
+
+	// calls the function "foo" with a parameter as the value in .bar
+	// and displays the result
+	{% call foo .bar %}
+
+	// ranges over the value returned by the function call "foo"
+	// with a parameter as the value in .bar and displays the key/value pairs
+	// of the result.
+	{% range call foo .bar as k v %}
+		{% .k %}: {% .v %}
+	{% end range %}
+
+Modes
 
 Tmpl has two modes, Production and Development, which can be changed at any time
 with the CompileMode function. In Development mode, every block and template is 
