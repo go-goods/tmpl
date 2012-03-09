@@ -6,32 +6,37 @@ in "blocks." These blocks may include: the header, navigation, main content, or
 supporting content. Tmpl provides simple block-based templating system to
 accommodate the needs of web development.
 
+Contexts
 
-Discussion
+Contexts are the origin from which all values referenced in a block are
+utilized. The main context is passed in when calling Execute to render the
+final HTML. From there, sub-contexts are derived by passing into blocks, using
+"evoke" or "with".
 
-Let's break this example down. First we'll start with the idea of a "context".
-A template is passed in a value called the "context" in the Execute call. Values
-from the context can be accessed by using "selectors". For example in the 
-"base.tmpl" file, we use a relative selector ".Title" to print out the title,
-and ".Meta" to specify a spot in the context to anchor our block evocation. So
-when the "meta.block" template is called, everything it can select is below
-the ".Meta" level in the context. But what if we wanted something above the
-passed in context? Do we have to pass in the highest level and have it select
-down for everything? Fortunately, no, there are two ways to break out and look
-"above" what was passed in. Absolute selectors, which are prefixed with a "/"
-and "popping" selectors which are prefixed with a number of "$". This sounds
-complicated, but assuming our context looks like
+Values from contexts and sub-contexts are available through the use of
+selectors. Selectors always begin with a dot (.), followed by the attribute
+name. A single dot selector always references "this" value. Selectors may chain
+together to delve deeper into any context, as seen below.
+
+Sub-contexts may always reference their parent context through the use of dollar
+signs ($), similar to referencing a parent directory using "..". Additionally,
+the top-level context is always available with a leading forward slash (/).
+
+Given the following main context, represented in JSON format,
 
 	{
 		"foo": {
 			"bar": {
-				"baz": "baz"
+				"baz": "bif"
 			}
 		}
 	}
 
-And our context is "rooted" at ".foo.bar.baz", we can access the string "baz"
-in these ways:
+if a block is evoked in the following manner,
+
+	{% evoke myBlock .foo.bar.baz %}
+
+then the following selectors will all produce "bif" within "myBlock":
 
 	{% . %}
 	{% $.baz %}
@@ -39,10 +44,6 @@ in these ways:
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
-The last of which is an absolute selector. So if we wanted to reference the title
-of the page inside of the meta block, we could use {% $.Title %}. A good metaphor
-to use for contexts is to think of them like a directory path, with a current
-working directory.
 
 Commands
 
