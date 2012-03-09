@@ -45,7 +45,7 @@ then the following selectors will all produce "bif" within "myBlock":
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
-Selector
+Statement - Selector
 
 Selects a value from a context or sub-context. Selector syntax traverses
 contexts in a manner similar to a directory structure:
@@ -70,7 +70,7 @@ contexts in a manner similar to a directory structure:
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
-Block
+Statement - Block
 
 Defines a block with the name, myName. Block definitions must end with an
 {% end block %} statement.
@@ -80,7 +80,7 @@ Defines a block with the name, myName. Block definitions must end with an
 	{% block greeting %}Hello!{% end block %}
 	{% block fullName %}{% .FirstName %} {% .LastName %}{% end block %}
 
-Evoke
+Statement - Evoke
 
 Substitutes this statement with the contents of the block, myBlock. The
 optional context argument pushes a sub-context into the block.
@@ -90,7 +90,7 @@ optional context argument pushes a sub-context into the block.
 	{% evoke greeting %}
 	{% evoke fullName .LoggedInUser %}
 
-Range
+Statement - Range
 
 Iterates over the value in .Selector. If "as keyName valueName" are present,
 the selectors ".keyName" and ".valueName" are available within the range block.
@@ -109,7 +109,7 @@ will iterate are: map, slice, struct
 		{% evoke fullName .friend %}
 	{% end range %}
 
-Range Call
+Statement - Range Call
 
 Similar to ranging over a selector, but first calls the function by the name,
 someFunc. All other aspects of operation are identical to the above selector
