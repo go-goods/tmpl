@@ -23,9 +23,17 @@ func (s *s) String() string {
 	return "foo"
 }
 
+func TestTemplateNoContext(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		{`this is just a literal`, nil, `this is just a literal`},
+		{`{% block foo %}test{% end block %}{% evoke foo %}`, nil, `test`},
+		{`{# foo #}test`, nil, `test`},
+		{`{# foo #}test{# bar baz #}`, nil, `test`},
+	})
+}
+
 func TestTemplatePassBlocks(t *testing.T) {
 	executeTemplatePasses(t, []templatePassCase{
-
 		{`{% block foo %}{% end block %}`, nil, ``},
 		{`{%block foo %}{%end block %}`, nil, ``},
 		{`{% block foo%}{% end block%}`, nil, ``},
@@ -37,6 +45,12 @@ func TestTemplatePassBlocks(t *testing.T) {
 			d{"foo": "foo", "bar": "bar"},
 			`foobar`,
 		},
+	})
+}
+
+func TestTemplateFailEvoke(t *testing.T) {
+	executeTemplateFails(t, []templateFailCase{
+		{`{% evoke foo %}`, nil},
 	})
 }
 
@@ -195,7 +209,9 @@ func executeTemplateFails(t *testing.T, cases []templateFailCase) {
 		tree, err := parse(lex([]byte(c.template)))
 		if err != nil {
 			// If this fires, move to TestLexExpectedFailures in lex_test.go
+			// or TestParseExpectedFailures in parse_test.go
 			t.Errorf("%d: Parser error: %v", id, err)
+			continue
 		}
 		if err := tree.Execute(ioutil.Discard, c.context); err == nil {
 			t.Errorf("%d: Did not fail: %v", id, c.template)
