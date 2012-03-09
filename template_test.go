@@ -210,6 +210,7 @@ func executeTemplateFails(t *testing.T, cases []templateFailCase) {
 		if err != nil {
 			// If this fires, move to TestLexExpectedFailures in lex_test.go
 			t.Errorf("%d: Parser error: %v", id, err)
+			continue
 		}
 		if err := tree.Execute(ioutil.Discard, c.context); err == nil {
 			t.Errorf("%d: Did not fail: %v", id, c.template)
