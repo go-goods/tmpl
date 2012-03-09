@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var testLongTemplate = []byte(`
+const testLongTemplate = `
 	literal
 	{% call func .foo.bar $$.bar.baz.foo /.foo.bar %}
 	{% block baz %}
@@ -26,7 +26,7 @@ var testLongTemplate = []byte(`
 	{% end if %}{% if .bar %}{% else %}doof{% end if %}
 	{% with .ff %}{% . %}{% end with %}
 	{% range . as _ val %}{% with .val %}{% . %}{% end with %}{% end range %}
-`)
+`
 
 type parseTestCase struct {
 	code string

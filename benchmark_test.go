@@ -12,8 +12,9 @@ func BenchmarkPathStringWith(b *testing.B) {
 }
 
 func BenchmarkParseSpeed(b *testing.B) {
+	t := []byte(testLongTemplate)
 	for i := 0; i < b.N; i++ {
-		parse(lex(testLongTemplate))
+		parse(lex(t))
 	}
 }
 
