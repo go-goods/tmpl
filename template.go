@@ -22,8 +22,8 @@ func (m Mode) String() string {
 }
 
 const (
-	Development Mode = false
-	Production  Mode = true
+	Development Mode = true
+	Production  Mode = false
 )
 
 var (
@@ -50,7 +50,7 @@ func modeSpitter() {
 //templates read in and compile each file it needs to execute every time it needs
 //to execute, always getting the most recent changes. In Production mode, templates
 //read and compile each file they need only the first time, caching the results
-//for subsequent Execute calls. By default, the package is in Development mode.
+//for subsequent Execute calls. By default, the package is in Production mode.
 func CompileMode(mode Mode) {
 	modeChange <- mode
 }
@@ -59,7 +59,8 @@ var cache = map[string]*parseTree{}
 
 func newTemplate(file string) *Template {
 	return &Template{
-		base: file,
+		base:  file,
+		dirty: true,
 	}
 }
 
@@ -72,12 +73,12 @@ type funcDecl struct {
 //Parse function and dependencies are attached through Blocks and Call.
 type Template struct {
 	//base and globs represent work to be done
-	base      string
-	globs     []string
-	tempglobs []string
-	funcs     []funcDecl
+	base  string
+	globs []string
+	funcs []funcDecl
+	dirty bool
 
-	compileLk sync.Mutex
+	compileLk sync.RWMutex
 
 	//our parse tree
 	tree *parseTree
@@ -88,6 +89,7 @@ type Template struct {
 //evoke them.
 func (t *Template) Blocks(globs ...string) *Template {
 	t.globs = append(t.globs, globs...)
+	t.dirty = true
 	return t
 }
 
@@ -100,47 +102,21 @@ func (t *Template) Call(name string, fnc interface{}) *Template {
 		panic(fmt.Errorf("%q is not a function.", fnc))
 	}
 	t.funcs = append(t.funcs, funcDecl{name, rv})
+	t.dirty = true
 	return t
 }
 
-func (t *Template) compile() (err error) {
-	//must protect against multiple compiles happening at once
-	t.compileLk.Lock()
-	defer t.compileLk.Unlock()
-
-	mode := <-modeChan
-	//figure out what work needs to be done
-	if t.base != "" {
-		err = t.updateBase(mode)
-		if err != nil {
-			return
-		}
-		if mode == Production {
-			t.base = ""
-		}
+func (t *Template) compile(mode Mode) (err error) {
+	if err = t.updateBase(mode); err != nil {
+		return
 	}
-	if len(t.globs) > 0 {
-		err = t.updateGlobs(t.globs, mode)
-		if err != nil {
-			return
-		}
-		if mode == Production {
-			t.globs = nil
-		}
+	if err = t.updateGlobs(t.globs, mode); err != nil {
+		return
 	}
-	if len(t.tempglobs) > 0 {
-		err = t.updateGlobs(t.tempglobs, mode)
-		if err != nil {
-			return
-		}
-		t.tempglobs = nil
+	for _, decl := range t.funcs {
+		t.tree.context.funcs[decl.name] = decl.val
 	}
-	if len(t.funcs) > 0 {
-		for _, decl := range t.funcs {
-			t.tree.context.funcs[decl.name] = decl.val
-		}
-		t.funcs = nil
-	}
+	t.dirty = false
 	return
 }
 
@@ -237,25 +213,65 @@ func (t *Template) updateBlocks(file string, blocks map[string]*executeBlockValu
 	return
 }
 
+func (t *Template) runCompilation(globs []string, mode Mode) (err error) {
+	//grab the compile lock
+	t.compileLk.Lock()
+	defer t.compileLk.Unlock()
+
+	//unset the tree and compile it
+	t.tree = nil
+	if err = t.compile(mode); err != nil {
+		return
+	}
+	t.tree.context.dup()
+
+	err = t.updateGlobs(globs, mode)
+	return
+}
+
+func (t *Template) lockedUpdateGlobs(globs []string, mode Mode) (err error) {
+	//grab the compile lock
+	t.compileLk.Lock()
+	defer t.compileLk.Unlock()
+
+	//load them in
+	err = t.updateGlobs(globs, mode)
+	return
+}
+
 //Execute runs the template with the specified context attaching all the block
 //definitions in the files that match the given globs sending the output to
 //w. Any errors during the compilation of any files that have to be compiled
 //(see the discussion on Modes) or during the execution of the template are
 //returned.
 func (t *Template) Execute(w io.Writer, ctx interface{}, globs ...string) (err error) {
-	//backup the context
-	t.tree.context.dup()
-	defer t.tree.context.restore()
+	//grab the mode for this execute
+	mode := <-modeChan
 
-	//add in our temporary blocks
-	t.tempglobs = globs
+	//if we're in dev or its dirty we need to fully recompile
+	if mode == Development || t.dirty {
+		//run the compilation
+		if err = t.runCompilation(globs, mode); err != nil {
+			return
+		}
+		//if we had globs we have to do a restore
+		if len(globs) > 0 {
+			defer t.tree.context.restore()
+		}
+	} else if len(globs) > 0 {
+		//it wasn't dirty or in development, but we have globs so set up
+		//a restore
+		defer t.tree.context.restore()
 
-	err = t.compile()
-	if err != nil {
-		return
+		//and compile them in
+		if err = t.lockedUpdateGlobs(globs, mode); err != nil {
+			return
+		}
 	}
 
 	//execute!
+	t.compileLk.RLock()
+	defer t.compileLk.RUnlock()
 	return t.tree.Execute(w, ctx)
 }
 
