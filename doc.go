@@ -45,12 +45,7 @@ then the following selectors will all produce "bif" within "myBlock":
 	{% $$$.foo.bar.baz %}
 	{% /.foo.bar.baz %}
 
-Statements
-
-The following outlines the statements available within templates, along with
-examples of each.
-
-	{% [/][$[$[...]]].[Selector[.Selector[...]]] %}
+Selector
 
 Selects a value from a context or sub-context. Selector syntax traverses
 contexts in a manner similar to a directory structure:
@@ -67,17 +62,35 @@ contexts in a manner similar to a directory structure:
 
 - Multiple selectors are separated by dots (.MyStruct.MySubStruct.MyValue)
 
-	{% block myName %}...{% end block %}
+	{% [/][$[$[...]]].[Selector[.Selector[...]]] %}
+
+	{% . %}
+	{% $.baz %}
+	{% $$.bar.baz %}
+	{% $$$.foo.bar.baz %}
+	{% /.foo.bar.baz %}
+
+Block
 
 Defines a block with the name, myName. Block definitions must end with an
 {% end block %} statement.
 
-	{% evoke myName [context] %}
+	{% block myName %}...{% end block %}
+
+	{% block greeting %}Hello!{% end block %}
+	{% block fullName %}{% .FirstName %} {% .LastName %}{% end block %}
+
+Evoke
 
 Substitutes this statement with the contents of the block, myBlock. The
 optional context argument pushes a sub-context into the block.
 
-	{% range .Selector [as keyName valueName]}...{% end range %}
+	{% evoke myName [context] %}
+
+	{% evoke greeting %}
+	{% evoke fullName .LoggedInUser %}
+
+Range
 
 Iterates over the value in .Selector. If "as keyName valueName" are present,
 the selectors ".keyName" and ".valueName" are available within the range block.
@@ -86,13 +99,31 @@ built-in range, "_" is a valid name for either the key or value. Range
 definitions must end with an {% end range %} statement. The types which range
 will iterate are: map, slice, struct
 
-	{% range call someFunc [as keyName valueName] %}
+	{% range .Selector [as keyName valueName]}...{% end range %}
+
+	{% range .LoggedInUser.Friends %}
+		{% evoke fullName .val %}
+	{% end range %}
+
+	{% range .LoggedInUser.Friends as _ friend %}
+		{% evoke fullName .friend %}
+	{% end range %}
+
+Range Call
 
 Similar to ranging over a selector, but first calls the function by the name,
 someFunc. All other aspects of operation are identical to the above selector
 range.
 
+	{% range call someFunc [as keyName valueName] %}...{% end range %}
 
+	{% range call loggedInUsers %}
+		{% evoke fullName .val %}
+	{% end range %}
+
+	{% range call loggedInUsers as _ user %}
+		{% evoke fullName .user %}
+	{% end range %}
 
 
 Tmpl comes with many commands to help with creating dynamic output easily. We
