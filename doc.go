@@ -1,14 +1,179 @@
 /*
-Package tmpl provides a lazy compilation block based templating system.
+Package tmpl provides a lazy compilation block-based templating system.
 
-Tmpl is a simple block based templating system. What does block based mean? When
-doing web design typically one thinks of "blocks" of content, for example in a
-navigation bar, the main content section of the page, or the header section of
-the page. Blocks are "evoked" by a main template, and defined in supporting files.
+When performing web development, page content and markup are easily visualized
+in "blocks." These blocks may include: the header, navigation, main content, or
+supporting content. Tmpl provides simple block-based templating system to
+accommodate the needs of web development.
 
-Example
+Statements
 
-One could have the template defined in "base.tmpl"
+Template statements are surrounded by the tokens '{%' and '%}' and contain text
+to specify the action the template system should take. All actions begin with
+a keyword like "block" or "evoke", except in the case of printing a value from
+a context, where just the selector is specified.
+
+Contexts
+
+Contexts are the origin for all of the values a template has access to. The main
+context is passed in when calling Execute to render the final output. From there, 
+sub-contexts are derived by passing into blocks, using "evoke" or "with".
+
+Statement - Selector
+
+Values from contexts and sub-contexts are available through the use of
+selectors. Selectors always begin with a dot (.), followed by the attribute
+name. A single dot selector always references "this" value. Selectors may chain
+together to delve deeper into any context, as seen below.
+
+Sub-contexts may always reference their parent context through the use of
+dollar signs ($), similar to referencing a parent directory using "..".
+Additionally, the top-level context is always available with a leading forward
+slash (/).
+
+Given the following main context, represented in JSON format,
+
+	{
+		"foo": {
+			"bar": {
+				"baz": "bif"
+			}
+		}
+	}
+
+and assuming the statements are being executed in a sub-context rooted at the
+"baz" element, then the following selectors will all produce "bif":
+
+	{% . %}
+	{% $.baz %}
+	{% $$.bar.baz %}
+	{% $$$.foo.bar.baz %}
+	{% /.foo.bar.baz %}
+
+Statement - Call
+
+Call runs a function that is attached to the template before it is Executed with
+the supplied arguments. For example if we had a function named "foo" that was
+attached to the template, the action
+
+	{% call foo .Bar .Baz %}
+
+corresponds to the function call
+
+	foo(.Bar, .Baz)
+
+with the selectors .Bar and .Baz evaluated. See Template.Call for details on
+how to attach a function.
+
+	{% call name [args...] %}
+
+	{% call titleCase .Title %}
+	{% call add .FirstNumber .SecondNumber %}
+	{% call not .Value %}
+	{% call equal .FirstName .OtherUser %}
+
+Statement - Block
+
+Defines a block with the name, myName. Block definitions must end with an
+{% end block %} statement.
+
+	{% block myName %}...{% end block %}
+
+	{% block greeting %}Hello!{% end block %}
+	{% block fullName %}{% .FirstName %} {% .LastName %}{% end block %}
+
+Statement - Evoke
+
+Substitutes this statement with the contents of the block, myBlock. The
+optional context argument pushes a sub-context into the block.
+
+	{% evoke myName [context] %}
+
+	{% evoke greeting %}
+	{% evoke fullName .LoggedInUser %}
+
+Statement - Range
+
+Iterates over the given value. A value can be either the result of a .Selector
+or the result of a call statement. If "as keyName valueName" are present,
+the selectors ".keyName" and ".valueName" are available within the range block.
+Otherwise, the selectors ".key" and ".val" become available. Similar to the Go
+built-in range, "_" is a valid name for either the key or value. Range
+definitions must end with an {% end range %} statement. The types which range
+will iterate are: map, slice, struct
+
+	{% range value [as keyName valueName]}...{% end range %}
+
+	{% range .LoggedInUser.Friends %}
+		{% evoke fullName .val %}
+	{% end range %}
+
+	{% range .LoggedInUser.Friends as _ friend %}
+		{% evoke fullName .friend %}
+	{% end range %}
+
+	{% range call someFunc [as keyName valueName] %}...{% end range %}
+
+	{% range call loggedInUsers %}
+		{% evoke fullName .val %}
+	{% end range %}
+
+	{% range call loggedInUsers as _ user %}
+		{% evoke fullName .user %}
+	{% end range %}
+
+Statement - If
+
+Evaluates the specified value which may be either a .Selector or the result of
+a call statement. If the value is "truthy" it executes the postive template,
+otherwise, it executes the negative template if given.
+
+	{% if value %}...[{% else %}...]{% end if %}
+
+	{% if .LoggedIn %}
+		Positive: {% evoke fullName .LoggedInUser %} is logged in!
+	{% end if %}
+
+	{% if .LoggedIn %}
+		Yep!
+	{% else %}
+		Negative: No one is logged in.
+	{% end if %}
+
+Statement - With
+
+With takes the specified selector and roots a sub-context at that position in
+the context.
+
+	{% with .Selector %}...{% end with %}
+
+	{% with .LoggedInUser %}
+		Hello {% .FristName %},
+		How are you Ms. {% .LastName %}
+	{% end with %}
+
+	{% with /. %}
+		Now we're rooted back at the top level no matter what!
+	{% end with %}
+
+	{% with .LoggedInUser %}
+		{% with .FirstName %}
+			Hello {% . %},
+			How are you Ms. {% $.LastName %}
+		{% end with %}
+	{% end with %}
+
+Modes
+
+Tmpl has two modes, Production and Development, which can be changed at any time
+with the CompileMode function. In Development mode, every block and template is 
+loaded from disk and compiled in Execute, so that the latest results are always
+used. In Production mode, files are only compiled the first time they are needed
+and the results are cached for subsequent access.
+
+Full Implementation Example
+
+The template, "base.tmpl", defined as,
 
 	//file: base.tmpl
 	<html>
@@ -42,7 +207,7 @@ with the set of blocks,
 	Some foofy content with a {% .User.Name %}
 	{% end block %}
 
-One could then load an execute this template by
+implementation with tmpl,
 
 	t := tmpl.Parse("base.tmpl")
 	t.Blocks("footer.block")
@@ -51,11 +216,7 @@ One could then load an execute this template by
 		//handle err
 	}
 
-This requests that the "footer.block" file be compiled in for every Execute,
-while the "meta.block" and "content.block" files are compiled in for that
-specific execute. The block defintions are inserted into the evoke locations
-with the current context passed in, or whatever is specified by the evoke. Thus
-for some context represented in json as
+and context, represented here as JSON,
 
 	{
 		"Meta": {
@@ -68,7 +229,7 @@ for some context represented in json as
 		}
 	}
 
-we would expect the output (with some whitespace difference)
+would lead to the following output (with some whitespace difference):
 
 	<html>
 	<head>
@@ -83,110 +244,9 @@ we would expect the output (with some whitespace difference)
 	</body>
 	</html>
 
-Discussion
-
-Let's break this example down. First we'll start with the idea of a "context".
-A template is passed in a value called the "context" in the Execute call. Values
-from the context can be accessed by using "selectors". For example in the 
-"base.tmpl" file, we use a relative selector ".Title" to print out the title,
-and ".Meta" to specify a spot in the context to anchor our block evocation. So
-when the "meta.block" template is called, everything it can select is below
-the ".Meta" level in the context. But what if we wanted something above the
-passed in context? Do we have to pass in the highest level and have it select
-down for everything? Fortunately, no, there are two ways to break out and look
-"above" what was passed in. Absolute selectors, which are prefixed with a "/"
-and "popping" selectors which are prefixed with a number of "$". This sounds
-complicated, but assuming our context looks like
-
-	{
-		"foo": {
-			"bar": {
-				"baz": "baz"
-			}
-		}
-	}
-
-And our context is "rooted" at ".foo.bar.baz", we can access the string "baz"
-in these ways:
-
-	{% . %}
-	{% $.baz %}
-	{% $$.bar.baz %}
-	{% $$$.foo.bar.baz %}
-	{% /.foo.bar.baz %}
-
-The last of which is an absolute selector. So if we wanted to reference the title
-of the page inside of the meta block, we could use {% $.Title %}. A good metaphor
-to use for contexts is to think of them like a directory path, with a current
-working directory.
-
-Commands
-
-Tmpl comes with many commands to help with creating dynamic output easily. We
-have already seen blocks, evoke, and range. There are also the commands with,
-if, and call.
-
-	* Block defines a named block to be inserted by an evoke
-	* Evoke calls a named block with an optional context path for it to operate on
-	* Range iterates over things like maps/slices/structs setting key/value pairs on the current context path.
-	* With temporarily sets the current level of the context path
-	* If evaluates the given value and runs one of two outcomes
-	* Call runs a user supplied function with the specified arguments
-
-Command Examples
-
-Below you can find a simple example displaying how to use each command.
-
-	// defines a block named foo
-	{% block foo %}
-		This is a foo block!
-	{% end block %}
-
-	// runs the block named foo
-	{% evoke foo %}
-
-	// runs the block named foo at the path .bar
-	{% evoke foo .bar %}
-
-	// iterates over the value in .iterable printing key/value pairs
-	{% range .iterable %}
-		{% .key %}: {% .val %}
-	{% end range %}
-
-	// iterates over the value in .iterable printing just values
-	{% range .iterable as _ v %}
-		{% .v %}
-	{% end range %}
-
-	// prints the value in .foo
-	{% with .foo %}
-		{% . %}
-	{% end with %}
-
-	// prints if the value in .foo is "truthy"
-	{% if .foo %}
-		.foo is true!
-	{% else %}
-		.foo is false!
-	{% end if %}
-
-	// calls the function "foo" with a parameter as the value in .bar
-	// and displays the result
-	{% call foo .bar %}
-
-	// ranges over the value returned by the function call "foo"
-	// with a parameter as the value in .bar and displays the key/value pairs
-	// of the result.
-	{% range call foo .bar as k v %}
-		{% .k %}: {% .v %}
-	{% end range %}
-
-Modes
-
-Tmpl has two modes, Production and Development, which can be changed at any time
-with the CompileMode function. In Development mode, every block and template is 
-loaded from disk and compiled in Execute, so that the latest results are always
-used. In Production mode, files are only compiled the first time they are needed
-and the results are cached for subsequent access.
+This requests that the "footer.block" file be compiled in for every Execute,
+while the "meta.block" and "content.block" files are compiled in for that
+specific execute. The block defintions are inserted into the evoke locations
+with the current context passed in, or whatever is specified by the evoke.
 */
 package tmpl
