@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 )
 
-var w ioutil.Discard
+var w = ioutil.Discard
 
 func ExampleCompileMode() {
 	//turn on Production mode
