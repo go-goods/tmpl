@@ -75,6 +75,7 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% if .foo flabdab %}{% end if %}`},
 		{`{% with .foo flabdab %}{% end with %}`},
 		{`{% if .foo %}{% else flabdab %}{% end if %}`},
+		{`{% elseif %}`},
 	})
 }
 

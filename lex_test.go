@@ -72,16 +72,20 @@ func TestLexExpectedFailures(t *testing.T) {
 		{`{% - %}`},
 		{`{% + %}`},
 		{`{% = %}`},
+		{`{% if !.foo %}`},
+		{`{% if ! .foo %}`},
 	}
 
 caseBlock:
 	for id, c := range cases {
+		var tokens []token
 		for token := range lex([]byte(c.code)) {
+			tokens = append(tokens, token)
 			if token.typ == tokenError {
 				continue caseBlock
 			}
 		}
-		t.Errorf("%d: Should not lex: %s", id, c.code)
+		t.Errorf("%d: Should not lex: %s\nGot: %s", id, c.code, tokens)
 	}
 }
 
