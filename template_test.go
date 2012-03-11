@@ -131,6 +131,16 @@ func TestTemplatePassRanges(t *testing.T) {
 			`FoobarBazbif`,
 		},
 		{
+			`{% range .Stylesheets as _ sheet %}{% with .sheet %}{% .URL %}{% end with %}{% end range %}`,
+			struct{ Stylesheets []stylesheet }{
+				[]stylesheet{
+					{URL: "one"},
+					{URL: "two"},
+				},
+			},
+			`onetwo`,
+		},
+		{
 			`{% range .Stylesheets as _ sheet %}{% .sheet.URL %}{% end range %}`,
 			struct{ Stylesheets []stylesheet }{
 				[]stylesheet{
