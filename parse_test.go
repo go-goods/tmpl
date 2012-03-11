@@ -40,9 +40,12 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% block foo %}`},
 		{`{% block %}{% end block %}`},
 		{`{% else %}`},
+		{`{% else if %}`},
+		{`{% else if . %}`},
 		{`{% if %}`},
 		{`{% if . %}`},
 		{`{% if %}{% end if %}`},
+		{`{% if bad %}{% end if %}`},
 		{`{% range %}`},
 		{`{% range .foo %}`},
 		{`{% range .foo as %}`},
@@ -51,9 +54,11 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% range %}{% end range %}`},
 		{`{% range .foo as %}{% end range %}`},
 		{`{% range .foo as bar %}{% end range %}`},
+		{`{% range bad %}{% end range %}`},
 		{`{% with %}`},
 		{`{% with . %}`},
 		{`{% with %}{% end with %}`},
+		{`{% with bad %}{% end with %} %}`},
 		{`{% end %}`},
 		{`{% end block %}`},
 		{`{% end if %}`},
@@ -62,10 +67,14 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% block foo %}{% block bar %}{% end block %}{% end block %}`},
 		{`{% block foo %}{% with . %}{% block bar %}{% end block %}{% end with %}{% end block %}`},
 		{`{% block foo %}{% end block %}{% block foo %}{% end block %}`},
+		{`{% block .foo %}{% end block %}`},
 
 		//cant evoke or with on things other than selectors
+		{`{% evoke foo ctx %}`},
+		{`{% evoke call foo %}`},
 		{`{% evoke foo call foo %}`},
 		{`{% with call foo %}`},
+		{`{% with call foo %}{% end with %}`},
 
 		//unknown keyword
 		{`{% flabdab %}`},
@@ -75,6 +84,7 @@ func TestParseExpectedFailures(t *testing.T) {
 		{`{% if .foo flabdab %}{% end if %}`},
 		{`{% with .foo flabdab %}{% end with %}`},
 		{`{% if .foo %}{% else flabdab %}{% end if %}`},
+		{`{% elseif %}`},
 	})
 }
 
@@ -94,6 +104,10 @@ func TestParseExpectedPasses(t *testing.T) {
 		{`{% evoke foo %}`},
 		{`{% evoke foo . %}`},
 		{`{% evoke foo /. %}`},
+		{`{% evoke foo .ctx %}`},
+		{`{% evoke foo .c.t.x %}`},
+		{`{% evoke foo /.ctx %}`},
+		{`{% evoke foo /.c.t.x %}`},
 		{`{% range . %}{% end range %}`},
 		{`{% range . as _ _ %}{% end range %}`},
 		{`{% range . as k v %}{% end range %}`},
