@@ -71,9 +71,9 @@ func (p path) dup() (d path) {
 	return
 }
 
-func (p *path) cd(keys []string) error {
+func (p *path) cd(keys []string, set map[string]reflect.Value) error {
 	for _, key := range keys {
-		val, err := access(*p, p.lastValue(), key)
+		val, err := access(*p, p.lastValue(), key, set)
 		if err != nil {
 			return err
 		}
@@ -86,10 +86,10 @@ func (p *path) cd(keys []string) error {
 	return nil
 }
 
-func (p path) valueAt(keys []string) (v reflect.Value, err error) {
+func (p path) valueAt(keys []string, set map[string]reflect.Value) (v reflect.Value, err error) {
 	v = p.lastValue()
 	for i, key := range keys {
-		v, err = access(p, v, key)
+		v, err = access(p, v, key, set)
 		if err != nil {
 			return v, fmt.Errorf("%s%s: Error accessing item %d: %q", p, strings.Join(keys[:i+1], "."), i, key)
 		}

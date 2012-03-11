@@ -21,12 +21,19 @@ func indirect(v reflect.Value) reflect.Value {
 	return v
 }
 
-func access(stack path, val reflect.Value, key string) (v reflect.Value, err error) {
+func access(stack path, val reflect.Value, key string, set map[string]reflect.Value) (v reflect.Value, err error) {
+	pth := stack.StringWith([]string{key})
+	//check our path override for that value
+	if iv, ex := set[pth]; ex {
+		v = iv
+		return
+	}
+
 	//just go hog wild
 	defer func() {
 		if e := recover(); e != nil {
 			v = reflect.Value{}
-			err = fmt.Errorf("%q.%q: %q", stack, key, e)
+			err = fmt.Errorf("%q: %q", pth, e)
 		}
 	}()
 
@@ -35,15 +42,15 @@ func access(stack path, val reflect.Value, key string) (v reflect.Value, err err
 	case reflect.Map:
 		v = val.MapIndex(reflect.ValueOf(key))
 		if !v.IsValid() {
-			err = fmt.Errorf("%q.%q: field not found", stack, key)
+			err = fmt.Errorf("%q: field not found", pth)
 		}
 	case reflect.Struct:
 		v = val.FieldByName(key)
 		if !v.IsValid() {
-			err = fmt.Errorf("%q.%q: field not found", stack, key)
+			err = fmt.Errorf("%q: field not found", pth)
 		}
 	default:
-		err = fmt.Errorf("%q.%q: cant indirect into %q", stack, key, val.Kind())
+		err = fmt.Errorf("%q: cant indirect into %q", pth, val.Kind())
 	}
 
 	return
@@ -54,15 +61,15 @@ type context struct {
 	blocks map[string]*executeBlockValue
 	backup map[string]*executeBlockValue
 	funcs  map[string]reflect.Value
-	set    map[string]interface{}
+	set    map[string]reflect.Value
 }
 
 func newContext() *context {
 	return &context{
 		stack:  path{},
-		funcs:  map[string]reflect.Value{},
 		blocks: map[string]*executeBlockValue{},
-		set:    map[string]interface{}{},
+		funcs:  map[string]reflect.Value{},
+		set:    map[string]reflect.Value{},
 	}
 }
 
@@ -100,7 +107,7 @@ func (c *context) restore() {
 	}
 }
 
-func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
+func (c *context) valueFor(s *selectorValue) (rv reflect.Value, err error) {
 	var pth path
 	switch {
 	case s == nil:
@@ -117,17 +124,7 @@ func (c *context) valueFor(s *selectorValue) (v interface{}, err error) {
 		pth = c.stack
 	}
 
-	//check our path override for that value
-	if iv, ex := c.set[pth.StringWith(s.path)]; ex {
-		v = iv
-		return
-	}
-
-	rv, err := pth.valueAt(s.path)
-	if err != nil {
-		return
-	}
-	v = rv.Interface()
+	rv, err = pth.valueAt(s.path, c.set)
 	return
 }
 
@@ -144,7 +141,7 @@ func (c *context) cd(s *selectorValue) (err error) {
 	case s.pops > 0:
 		c.stack = c.stack[:len(c.stack)-s.pops]
 	}
-	err = c.stack.cd(s.path)
+	err = c.stack.cd(s.path, c.set)
 	return
 }
 
@@ -162,7 +159,7 @@ func (c *context) getCall(name string) reflect.Value {
 
 func (c *context) setAt(path string, value interface{}) {
 	if path != "" {
-		c.set[path] = value
+		c.set[path] = reflect.ValueOf(value)
 	}
 }
 

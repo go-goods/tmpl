@@ -109,8 +109,13 @@ type selectorValue struct {
 	path []string
 }
 
-func (s *selectorValue) Value(c *context) (interface{}, error) {
-	return c.valueFor(s)
+func (s *selectorValue) Value(c *context) (v interface{}, err error) {
+	rv, err := c.valueFor(s)
+	if err != nil {
+		return
+	}
+	v = rv.Interface()
+	return
 }
 
 func (s *selectorValue) Execute(w io.Writer, c *context) (err error) {
