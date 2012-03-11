@@ -66,6 +66,7 @@ func TestTemplatePassComments(t *testing.T) {
 }
 
 func TestTemplatePassRanges(t *testing.T) {
+	type stylesheet struct{ URL string }
 	executeTemplatePasses(t, []templatePassCase{
 		// Space check
 		{
@@ -128,6 +129,26 @@ func TestTemplatePassRanges(t *testing.T) {
 			`{% range . as foo bar %}{% .foo %}{% .bar %}{% end range %}`,
 			struct{ Foo, Baz string }{"bar", "bif"},
 			`FoobarBazbif`,
+		},
+		{
+			`{% range .Stylesheets as _ sheet %}{% with .sheet %}{% .URL %}{% end with %}{% end range %}`,
+			struct{ Stylesheets []stylesheet }{
+				[]stylesheet{
+					{URL: "one"},
+					{URL: "two"},
+				},
+			},
+			`onetwo`,
+		},
+		{
+			`{% range .Stylesheets as _ sheet %}{% .sheet.URL %}{% end range %}`,
+			struct{ Stylesheets []stylesheet }{
+				[]stylesheet{
+					{URL: "one"},
+					{URL: "two"},
+				},
+			},
+			`onetwo`,
 		},
 	})
 }

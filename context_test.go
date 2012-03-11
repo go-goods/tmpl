@@ -1,19 +1,22 @@
 package tmpl
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 type d map[string]interface{}
 
 func TestContextSetPath(t *testing.T) {
 	c := newContext()
 	c.stack = pathRootedAt(nil)
-	sel := &selectorValue{0, false, []string{"foo", "bar", "baz"}}
-	c.set["/.foo.bar.baz"] = "baz"
+	sel := &selectorValue{0, false, []string{"foo"}}
+	c.set["/.foo"] = reflect.ValueOf("baz")
 	val, err := c.valueFor(sel)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if val.(string) != "baz" {
+	if val.Interface().(string) != "baz" {
 		t.Fatal("Wrong value for selector")
 	}
 }
@@ -27,7 +30,7 @@ func TestContextNestedMaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if val.(string) != "baz" {
+	if val.Interface().(string) != "baz" {
 		t.Fatal("Wrong value for selector")
 	}
 }
@@ -46,7 +49,7 @@ func TestContextNestedStructs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if val.(Baz) != "baz" {
+	if val.Interface().(Baz) != "baz" {
 		t.Fatal("Wrong value for selector")
 	}
 }
