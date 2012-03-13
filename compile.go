@@ -7,11 +7,14 @@ import (
 	"strings"
 )
 
+//parseTree represents a parsed template and the set of blocks/functions that
+//it will use to execute.
 type parseTree struct {
 	base    executer
 	context *context
 }
 
+//Execute runs the parsed template with the context value as the root.
 func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
 	if p.base == nil {
 		return nil
@@ -20,6 +23,7 @@ func (p *parseTree) Execute(w io.Writer, ctx interface{}) error {
 	return p.base.Execute(w, p.context)
 }
 
+//String returns a nice printable representation of the parse tree and context.
 func (p *parseTree) String() string {
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, p.context)
@@ -27,6 +31,7 @@ func (p *parseTree) String() string {
 	return buf.String()
 }
 
+//parser is a type that represnts an ongoing parse of a template.
 type parser struct {
 	//parser setup
 	in  chan token    //token channel
@@ -44,35 +49,46 @@ type parser struct {
 	errd   token //if a token is an EOF or Error to repeat it forever
 }
 
+//parseState is a transition state of the parser state machine.
 type parseState func(*parser) parseState
 
+//parse compiles the incoming channel of tokens into a parseTree.
 func parse(toks chan token) (t *parseTree, err error) {
 	t = &parseTree{
 		context: newContext(),
 	}
+	//make a channel of blocks to stick into the context
 	blocks := make(chan *executeBlockValue)
 	go func() {
+		//start a new parser
 		p := &parser{
 			in:     toks,
 			errd:   tokenNone,
 			blocks: blocks,
 		}
+		//set the base of the parse tree
 		t.base, err = subParse(p, tokenNoneType)
+		//signal no more blocks are coming
 		close(blocks)
 	}()
 
+	//array for redefined block errors
 	var redef []string
 	for b := range blocks {
+		//check if we're redefining a block
 		if _, ex := t.context.blocks[b.ident]; ex {
 			redef = append(redef, fmt.Sprintf("Redefined block %s", b.ident))
 		}
+		//set our block
 		t.context.blocks[b.ident] = b
 	}
 
+	//return an error about redefined blocks
 	if redef != nil {
 		err = fmt.Errorf(strings.Join(redef, "\n"))
 	}
 
+	//if we have an error, don't return a parse tree
 	if err != nil {
 		t = nil
 	}
@@ -80,6 +96,7 @@ func parse(toks chan token) (t *parseTree, err error) {
 	return
 }
 
+//run executes the parser state machine
 func (p *parser) run() {
 	for state := parseText; state != nil; {
 		state = state(p)
@@ -87,23 +104,23 @@ func (p *parser) run() {
 	close(p.out)
 }
 
+//errorf is a helper that sets an error and returns a stop state
 func (p *parser) errorf(format string, args ...interface{}) parseState {
 	p.err = fmt.Errorf(format, args...)
 	return nil
 }
 
+//errExpect is a helper that sets an error and returns a stop state
 func (p *parser) errExpect(ex tokenType, got token) parseState {
 	return p.errorf("Compile: Expected a %q got a %q", ex, got)
 }
 
+//unexpected is a helper that sets an error and returns a stop state
 func (p *parser) unexpected(t token) parseState {
-	// var stack [4096]byte
-	// log.Println(t)
-	// runtime.Stack(stack[:], false)
-	// log.Println(string(stack[:]))
 	return p.errorf("Unexpected %q", t)
 }
 
+//accept will accept a token of the given type, and return if it did
 func (p *parser) accept(tok tokenType) bool {
 	if p.next().typ == tok {
 		return true
@@ -112,6 +129,8 @@ func (p *parser) accept(tok tokenType) bool {
 	return false
 }
 
+//next returns the next token from the channel. If an error is ever encountered,
+//it will return that token every time. It also respects backing up.
 func (p *parser) next() token {
 	if p.backed {
 		p.backed = false
@@ -127,6 +146,8 @@ func (p *parser) next() token {
 	return p.curr
 }
 
+//backup puts the last read token back into the channel to be read again. It
+//will panic if backup happens more than once.
 func (p *parser) backup() {
 	if p.backed {
 		panic("double backup")
@@ -134,12 +155,17 @@ func (p *parser) backup() {
 	p.backed = true
 }
 
+//peek returns the next token in the channel without consuming it. It is
+//equivelant to a next() and a backup()
 func (p *parser) peek() (t token) {
 	t = p.next()
 	p.backup()
 	return
 }
 
+//acceptUntil accepts tokens until a token of the given type is found and it
+//will backup so that the next token is of the given type. It will also stop
+//if an error type is encountered.
 func (p *parser) acceptUntil(tok tokenType) (t []token) {
 	for {
 		curr := p.next()
@@ -155,14 +181,17 @@ func (p *parser) acceptUntil(tok tokenType) (t []token) {
 	panic("unreachable")
 }
 
+//subParse starts another parser that runs until an end clause is encountered
+//of the given tokenType.
 func subParse(parp *parser, end tokenType) (ex executer, err error) {
+	//create our sub-parser
 	p := &parser{
-		in:      parp.in,
-		out:     make(chan executer),
-		end:     end,
-		errd:    tokenNone,
-		inBlock: parp.inBlock || end == tokenBlock,
-		blocks:  parp.blocks,
+		in:      parp.in,                           //use the same in channel
+		out:     make(chan executer),               //make a new out channel
+		end:     end,                               //look for the given end token
+		errd:    tokenNone,                         //we haven't errored yet
+		inBlock: parp.inBlock || end == tokenBlock, //check if we're in a block
+		blocks:  parp.blocks,                       //use the same block channel
 	}
 	//run the parser
 	go p.run()
@@ -195,14 +224,17 @@ func subParse(parp *parser, end tokenType) (ex executer, err error) {
 	return
 }
 
+//parseText is the start state of the parser.
 func parseText(p *parser) (s parseState) {
-	//only accept literal, open, and eof
 	switch tok := p.next(); tok.typ {
+	//do nothing with comments
 	case tokenComment:
 		return parseText
+	//send out literal values and keep parsing text
 	case tokenLiteral:
 		p.out <- constantValue(tok.dat)
 		return parseText
+	//with an open check what the next action is
 	case tokenOpen:
 		return parseOpen
 	case tokenEOF:
@@ -216,6 +248,7 @@ func parseText(p *parser) (s parseState) {
 	return nil
 }
 
+//parseOpen is the state after an open action token.
 func parseOpen(p *parser) parseState {
 	switch tok := p.next(); {
 	//advanced calls to start a sub parser
@@ -267,7 +300,7 @@ func parseOpen(p *parser) parseState {
 	panic("unreachable")
 }
 
-//parse end should signal the end of a sub parser
+//parseEnd should signal the end of a sub parser
 func parseEnd(p *parser) parseState {
 	//didn't get the end we're looking for
 	if tok := p.next(); tok.typ != p.end {
@@ -279,6 +312,7 @@ func parseEnd(p *parser) parseState {
 	return nil
 }
 
+//parseEvoke parses an evoke action.
 func parseEvoke(p *parser) parseState {
 	//grab the name
 	ident := p.next()
@@ -305,6 +339,7 @@ func parseEvoke(p *parser) parseState {
 	return parseText
 }
 
+//parseBlock parses a block definition.
 func parseBlock(p *parser) parseState {
 	//grab the name
 	ident := p.next()
@@ -323,10 +358,12 @@ func parseBlock(p *parser) parseState {
 		return p.errorf(err.Error())
 	}
 
+	//send it to blocks instead of out
 	p.blocks <- &executeBlockValue{string(ident.dat), "", ex}
 	return parseText
 }
 
+//parseWith parses a with action.
 func parseWith(p *parser) parseState {
 	//grab the value type
 	ctx, st := consumeSelector(p)
@@ -348,6 +385,7 @@ func parseWith(p *parser) parseState {
 	return parseText
 }
 
+//parseRange parses a range action.
 func parseRange(p *parser) parseState {
 	//grab the value type
 	ctx, st := consumeValue(p)
@@ -386,6 +424,7 @@ func parseRange(p *parser) parseState {
 	return parseText
 }
 
+//parseIf parses an if clause.
 func parseIf(p *parser) parseState {
 	//grab the value
 	cond, st := consumeValue(p)
