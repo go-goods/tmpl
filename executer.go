@@ -327,12 +327,11 @@ func (e *executeIf) constValue() (ex executer, isConst bool) {
 
 func (e *executeIf) Execute(w io.Writer, c *context) (err error) {
 	v, err := e.cond.Value(c)
-	if err != nil {
-		return
-	}
-	t := truthy(v)
-	if t {
-		return e.succ.Execute(w, c)
+	if err == nil {
+		t := truthy(v)
+		if t {
+			return e.succ.Execute(w, c)
+		}
 	}
 	if e.fail != nil {
 		return e.fail.Execute(w, c)

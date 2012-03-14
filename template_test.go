@@ -48,6 +48,16 @@ func TestTemplatePassBlocks(t *testing.T) {
 	})
 }
 
+func TestTemplatePassIf(t *testing.T) {
+	executeTemplatePasses(t, []templatePassCase{
+		{`{% if . %}pass{% end if %}`, true, `pass`},
+		{`{% if . %}pass{% else %}fail{% end if %}`, true, `pass`},
+		{`{% if . %}fail{% else %}pass{% end if %}`, false, `pass`},
+		{`{% if .foo.bar %}fail{% else %}pass{% end if %}`, nil, `pass`},
+		{`{% if .foo.bar %}fail{% end if %}`, nil, ``},
+	})
+}
+
 func TestTemplateFailEvoke(t *testing.T) {
 	executeTemplateFails(t, []templateFailCase{
 		{`{% evoke foo %}`, nil},
